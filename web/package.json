@@ -1,0 +1,47 @@
+{
+  "name": "postecho-web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PostEcho web app \u2014 turn videos and trends into scheduled posts.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:migrate:dev": "node scripts/migrate-dev.mjs",
+    "demo": "tsx scripts/demo.ts"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@neondatabase/serverless": "^1.1.0",
+    "@upstash/qstash": "^2.11.3",
+    "drizzle-orm": "^0.45.2",
+    "iron-session": "^9.0.1",
+    "jev-judge": "file:vendor/jev-judge-0.3.0.tgz",
+    "mammoth": "^1.12.3",
+    "next": "16.3.5",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "resend": "^6.28.1",
+    "unpdf": "^1.8.1",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitest/coverage-v8": "^4.1.11",
+    "drizzle-kit": "^0.31.10",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.5",
+    "tailwindcss": "^4",
+    "tsx": "^4.23.15",
+    "typescript": "^5",
+    "vitest": "^4.1.11"
+  }
+}

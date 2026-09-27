@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Template launchd job for postecho-agent. Copy this file to
+  ~/Library/LaunchAgents/com.postecho.agent.plist, then:
+
+    1. Replace every /ABSOLUTE/PATH/TO/PostEcho/agent below with the real,
+       absolute path to this `agent/` directory on this Mac (no `~`, no
+       trailing slash — launchd does not expand either).
+    2. Run `which npm` and, if it isn't /usr/local/bin/npm or
+       /opt/homebrew/bin/npm, adjust the ProgramArguments accordingly (the
+       login shell (`-l`) below already sources your shell profile, which is
+       usually enough for nvm/Homebrew installs to resolve `npm` and `node`).
+    3. `launchctl load ~/Library/LaunchAgents/com.postecho.agent.plist`
+    4. `launchctl unload ~/Library/LaunchAgents/com.postecho.agent.plist` to stop it
+       (e.g. before editing agent/.env — reload after).
+
+  `.env` (POSTECHO_URL, AGENT_TOKEN, etc.) is read by `npm run dev` itself
+  (tsx --env-file-if-exists=.env), so it does not need to be repeated here.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.postecho.agent</string>
+
+    <key>WorkingDirectory</key>
+    <string>/ABSOLUTE/PATH/TO/PostEcho/agent</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/zsh</string>
+        <string>-lc</string>
+        <string>exec npm run dev</string>
+    </array>
+
+    <!-- Restarts the process if it exits (crash, killed, etc.). -->
+    <key>KeepAlive</key>
+    <true/>
+
+    <!-- Starts the agent when this launchd job is loaded / on login. -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>ProcessType</key>
+    <string>Background</string>
+
+    <!--
+      Safe to leave on disk: the agent never logs prompt or transcript
+      contents, only sizes and durations (see README "Design notes").
+    -->
+    <key>StandardOutPath</key>
+    <string>/ABSOLUTE/PATH/TO/PostEcho/agent/launchd/agent.out.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/ABSOLUTE/PATH/TO/PostEcho/agent/launchd/agent.err.log</string>
+</dict>
+</plist>

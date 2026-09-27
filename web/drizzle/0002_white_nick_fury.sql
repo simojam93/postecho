@@ -1,0 +1,2 @@
+CREATE UNIQUE INDEX "ideas_url_unique" ON "ideas" USING btree ("url") WHERE url IS NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "jobs_scout_open_unique" ON "jobs" USING btree ("kind") WHERE kind = 'scout' AND status IN ('queued','claimed');

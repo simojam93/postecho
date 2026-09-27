@@ -1,0 +1,19 @@
+{
+  "name": "postecho",
+  "private": true,
+  "description": "Find what's worth posting about, write it in your own voice, and schedule it on X and LinkedIn.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.9"
+  },
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "dev": "node scripts/dev.mjs",
+    "demo": "npm --prefix web run demo",
+    "test": "node --test \"scripts/**/*.test.mjs\" && npm --prefix web test && npm --prefix agent test",
+    "media": "node scripts/capture-media.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.62.1"
+  }
+}

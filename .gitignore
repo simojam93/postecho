@@ -1,0 +1,12 @@
+node_modules/
+# Every env file but the examples: keys never go in the repo.
+.env*
+!.env.example
+*.pem
+*.key
+.next/
+.vercel
+*.log
+.DS_Store
+.pglite/
+.claude/

@@ -1,0 +1,2 @@
+DROP INDEX "jobs_scout_open_unique";--> statement-breakpoint
+CREATE UNIQUE INDEX "jobs_scout_open_query_unique" ON "jobs" USING btree ("kind",(payload->>'query')) WHERE kind = 'scout' AND status IN ('queued','claimed');

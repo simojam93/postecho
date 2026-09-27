@@ -1,0 +1,46 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: web } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: web/package-lock.json }
+      - run: npm ci
+      - run: npx next typegen && npx tsc --noEmit
+      - run: npm run lint
+      - run: npm test
+  agent:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: agent } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: agent/package-lock.json }
+      - run: npm ci
+      - run: npx tsc --noEmit -p .
+      - run: npm test
+  scripts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: node --test "scripts/**/*.test.mjs"
+  # The README's three commands, as a newcomer runs them, on a machine with no Claude Code and no keys.
+  quickstart:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm run setup </dev/null
+      - run: npm run demo
+      - name: npm run dev answers on http://localhost:3000
+        run: |
+          npm run dev > dev.log 2>&1 &
+          for i in $(seq 1 90); do grep -q "PostEcho is running" dev.log && break; sleep 2; done
+          tail -n 20 dev.log
+          curl -fsS -o /dev/null http://localhost:3000/login

@@ -1,0 +1,28 @@
+{
+  "name": "postecho-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "PostEcho local agent \u2014 long-polls postecho-web for jobs and runs them via Claude Code headless (owner's subscription, no API key).",
+  "engines": {
+    "node": ">=22.9"
+  },
+  "scripts": {
+    "dev": "tsx --env-file-if-exists=.env src/main.ts",
+    "doctor": "tsx --env-file-if-exists=.env src/doctor.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "jev-judge": "file:../web/vendor/jev-judge-0.3.0.tgz",
+    "youtube-transcript": "^1.3.1",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "tsx": "^4.23.15",
+    "typescript": "^5",
+    "vitest": "^4.1.11"
+  }
+}

@@ -1,0 +1,13 @@
+# Not needed to build or run on Vercel (the CLI upload otherwise walks the
+# working tree): the dev database the local server keeps writing, local
+# build output, deps, logs and every env file. `vendor/` stays: it holds the
+# packed jev-judge the build installs.
+.pglite
+.next
+node_modules
+*.log
+.env
+.env.*
+!.env.example
+coverage
+launchd

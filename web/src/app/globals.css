@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+/* PostEcho design tokens — dark only in v1.
+   A near-black #08080a ground, #f5f5f7 text, #7c7c86 dim gray, and a SILVER
+   accent (#e6e8ec), never orange. */
+@theme {
+  --color-bg: #08080a;
+  --color-surface: #101013;
+  --color-surface-2: #17171b;
+  --color-border: #26262c;
+  --color-text: #f5f5f7;
+  --color-text-dim: #7c7c86;
+  --color-accent: #e6e8ec;      /* silver */
+  --color-accent-ink: #0b0b0d;
+  --color-danger: #e5605c;
+  --color-ok: #5fbf77;
+}
+
+/* The native system stack (SF on Apple devices).
+   Geist Mono stays wired (via layout.tsx) for future code/monospace bits. */
+@theme inline {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: var(--font-geist-mono);
+}
+
+html { color-scheme: dark; }
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+}

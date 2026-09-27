@@ -1,0 +1,1 @@
+ALTER TYPE "public"."idea_status" ADD VALUE 'kept';

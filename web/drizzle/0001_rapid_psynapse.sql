@@ -1,0 +1,2 @@
+ALTER TABLE "drafts" ADD CONSTRAINT "drafts_parent_id_drafts_id_fk" FOREIGN KEY ("parent_id") REFERENCES "public"."drafts"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "jobs_status_kind_created_at_idx" ON "jobs" USING btree ("status","kind","created_at");
