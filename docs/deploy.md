@@ -2,7 +2,7 @@
 
 Locally, PostEcho needs no account: `npm run setup` and `npm run dev` are enough. To reach it from your
 phone, or to keep it running while your laptop sleeps, the web app goes on Vercel and its database on
-Neon. The agent stays on your Mac, because that's where Claude Code runs on your own plan. Both free
+Neon. The agent stays on your computer, because that's where Claude Code runs on your own plan. Both free
 tiers are enough for one person.
 
 ## 1. The database
@@ -42,7 +42,7 @@ tiers are enough for one person.
    vercel deploy --prod --cwd web
    ```
 
-## 3. The agent on your Mac
+## 3. The agent on your computer
 
 The agent takes jobs from the web app and runs Claude Code headless. Point it at the deployed app in
 `agent/.env`:
@@ -52,7 +52,7 @@ POSTECHO_URL=https://your-project.vercel.app
 AGENT_TOKEN=the same value as the web app's AGENT_TOKEN
 ```
 
-To keep it running in the background, and have it start again at login, install it as a launchd
+On a Mac, to keep it running in the background and have it start again at login, install it as a launchd
 daemon: see [`agent/README.md`](../agent/README.md). For unattended runs, `claude setup-token` gives
 it a long-lived login.
 
@@ -75,7 +75,7 @@ plan allows one run a day.
 
 - **Vercel Hobby and Neon's free tier:** free for a personal project; one person's posts are a few
   megabytes.
-- **Claude:** your Claude plan (Pro or Max). The agent calls Claude Code on your Mac, with no API key and
+- **Claude:** your Claude plan (Pro or Max). The agent calls Claude Code on your computer, with no API key and
   no per-token bill.
 - **Jev:** optional, billed by TypeSafe: it ranks what a search finds and scores how human a draft reads.
 - **X's API:** optional and billed by X per use, only if you add your own key to search X.

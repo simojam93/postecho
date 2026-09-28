@@ -54,11 +54,11 @@ PostEcho asks how it did, and the next search learns from the answer.
   Humanize rewrites one until it does.
 - **It shows its work.** Anything that takes more than a few seconds says what it's doing, step by step,
   with the time it's taking.
-- **It runs on your own Claude plan.** The writing happens in Claude Code on your Mac: no API key, no
+- **It runs on your own Claude plan.** The writing happens in Claude Code on your computer: no API key, no
   bill per word.
 - **No scraping, no autopilot.** Only official APIs and open sources, and nothing goes out without you:
   you schedule each post on X and LinkedIn yourself.
-- **Free to host.** It runs on your Mac, or online on Vercel's and Neon's free tiers. The services it
+- **Free to host.** It runs on your computer, or online on Vercel's and Neon's free tiers. The services it
   uses bill you themselves: see [what it costs](#what-it-costs).
 
 ## Built by
@@ -104,13 +104,13 @@ flowchart LR
   you([You]) --> web["Web app<br/>Next.js on Vercel"]
   web --> db[("Postgres<br/>Neon, or PGlite locally")]
   web -- "puts jobs" --> queue[["Job queue"]]
-  agent["Agent on your Mac"] -- "takes jobs" --> queue
+  agent["Agent on your computer"] -- "takes jobs" --> queue
   agent --> claude["Claude Code<br/>claude -p"]
   web --> jev["Jev, through jev-judge<br/>rank · spam · human score"]
   web --> sources["Open sources<br/>Hacker News · GitHub · Bluesky · arXiv · …"]
 ```
 
-The web app never writes with a model itself. It puts a job in the queue; the agent on your Mac
+The web app never writes with a model itself. It puts a job in the queue; the agent on your computer
 long-polls for it, runs Claude Code headless on your own plan, reports each step, and sends the result
 back. Judging goes through [jev-judge](https://github.com/simojam93/jev-judge), a small MIT library by the
 same author: ranking what a search finds, spotting spam, scoring how human a text reads, and learning
@@ -119,7 +119,7 @@ your style from what you keep. A built copy is vendored in `web/vendor/`, so one
 | Folder | What's in it |
 | --- | --- |
 | [`web/`](web/) | The Next.js 16 app: Find Ideas, Write, Calendar, Settings and the API, with Drizzle on Postgres. |
-| [`agent/`](agent/) | The daemon for your Mac: takes jobs, runs `claude -p`, reports each step. |
+| [`agent/`](agent/) | The daemon for your computer: takes jobs, runs `claude -p`, reports each step. |
 | [`scripts/`](scripts/) | `setup` and `dev`, and `media`, which makes the screenshots above from the sample data. |
 | [`docs/`](docs/) | The deploy guide, the case study, and the design spec and plan behind every feature. |
 
