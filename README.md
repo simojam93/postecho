@@ -5,8 +5,8 @@
 <h1 align="center">PostEcho</h1>
 
 <p align="center">
-  Find what's worth posting about, write it in your own voice, and schedule it on X and LinkedIn.<br>
-  Self-hosted and open source, on your own Claude plan.
+  Find a topic and draft posts from your writing examples.<br>
+  A self-hosted writing assistant for X and LinkedIn. You review and schedule each post yourself.
 </p>
 
 <p align="center">
@@ -15,87 +15,83 @@
 </p>
 
 <p align="center">
-  <img src="docs/media/hero.gif" width="100%" alt="Trends, a video's posts, picking a take in Write, and the week in Calendar">
+  <img src="docs/media/hero.gif" width="100%" alt="PostEcho's search, drafts and calendar, shown with sample data">
 </p>
 
-> **Who it's for:** anyone who posts on X and LinkedIn and wants a writing assistant they host themselves,
-> one owner per install. The writing runs on [Claude Code](https://docs.claude.com/en/docs/claude-code/overview),
-> so you need a Claude plan; the agent is the one place another AI would plug in
-> ([how](CONTRIBUTING.md#plugging-in-another-ai-writer)). [Jev](https://typesafe.ai) is optional: it ranks
-> what a search finds and scores how human a draft reads.
+> **Who it's for:** people who post on X and LinkedIn and want to run their own writing assistant.
+> Each install has one owner. Writing requires [Claude Code](https://code.claude.com/docs/en/overview)
+> logged in with your Claude plan. [Jev](https://typesafe.ai) optionally ranks results and gives feedback
+> on writing style. The preview above uses fictional sample data.
 
 ## What it does
 
-**Find.** Search a topic and PostEcho looks through about ten open sources, from Hacker News and GitHub
-to Bluesky and arXiv. What it finds comes back best first, ranked by Jev, a model built to judge text.
+**Find.** Search sources including Hacker News, GitHub and arXiv. Some sources need credentials.
+Jev ranks results when enabled; search also works without it.
 
-![Find Ideas: a search for design systems, best first](docs/media/find-ideas.png)
+![Find Ideas with fictional sample results](docs/media/find-ideas.png)
 
-**Turn a video into posts.** Paste a YouTube link: PostEcho reads the whole video and writes twelve X
-posts from it, in your voice, as your own ideas.
+**Turn a video into posts.** Get twelve X drafts from a YouTube transcript. If unavailable, PostEcho
+can use the description and chapters, or you can paste a transcript. Check facts and add attribution before publishing.
 
-![Video posts: twelve ready X posts from one video](docs/media/video-posts.png)
+![Video drafts shown with fictional sample data](docs/media/video-posts.png)
 
-**Write.** Use an idea and Claude writes three takes in your voice. Pick one, then change it in a chat:
-shorter, more personal, a LinkedIn version.
+**Write.** Choose an idea for three drafts based on your writing examples and style guide.
+Pick one and ask for changes, such as a shorter version or a LinkedIn post.
 
-![Write: three takes, the chosen one, and the chat to change it](docs/media/write.png)
+![Three sample drafts and the editor](docs/media/write.png)
 
-**Calendar.** Schedule on X's and LinkedIn's own schedulers and see your week. Once a post is out,
-PostEcho asks how it did, and the next search learns from the answer.
+**Calendar.** Open X or LinkedIn to schedule a post, then record its time in PostEcho.
+If you change that time on the platform, update PostEcho too.
 
-![Calendar: the week, and the posts scheduled on X and LinkedIn](docs/media/calendar.png)
+![Calendar populated with fictional sample posts](docs/media/calendar.png)
 
 ## What makes it different
 
-- **It writes like you.** Claude works from your best posts, your reference material and a style guide
-  that improves from the takes you keep. You approve every change to it.
-- **It tells you how human a text reads.** Jev scores your drafts out of 10 for how human they read, and
-  Humanize rewrites one until it does.
-- **It shows its work.** Anything that takes more than a few seconds says what it's doing, step by step,
-  with the time it's taking.
-- **It runs on your own Claude plan.** The writing happens in Claude Code on your computer: no API key, no
-  bill per word.
-- **No scraping, no autopilot.** Only official APIs and open sources, and nothing goes out without you:
-  you schedule each post on X and LinkedIn yourself.
-- **Free to host.** It runs on your computer, or online on Vercel's and Neon's free tiers. The services it
-  uses bill you themselves: see [what it costs](#what-it-costs).
+- **Your writing examples guide the drafts.** Proposed style-guide updates wait for your approval.
+- **Optional style feedback.** Jev scores AI-like writing patterns. Humanize tries up to three rewrites
+  and keeps the best-scored result. The score is a model's assessment.
+- **Visible progress.** Searches and writing jobs show their current step and elapsed time.
+- **Your Claude Code login.** The local agent uses your Claude plan, subject to its usage limits.
+- **Manual publishing.** You review each draft and schedule it in the platform's own composer.
+- **Local hosting.** Run the app and database on your computer, or deploy the web app separately.
 
 ## Built by
 
 [Simone Lovera](https://github.com/simojam93), CPO at [Forte AI](https://www.forte-ai.com), designed and
-built PostEcho with Claude Code. The [case study](docs/case-study.md) tells the design decisions behind
-it.
+built PostEcho with Claude Code. Read the [design case study](docs/case-study.md).
 
 ---
 
 ## Run it
 
-You need macOS or Linux, Node 22.9 or newer, and
-[Claude Code](https://docs.claude.com/en/docs/claude-code/overview) logged in for the writing.
+You need Git, macOS or Linux, and Node 22.9 or newer. To generate or revise text, install
+[Claude Code](https://code.claude.com/docs/en/overview) and log in with your Claude plan.
 
 ```bash
 git clone https://github.com/simojam93/postecho && cd postecho
-npm run setup   # installs, writes the keys, prepares the local database
-npm run demo    # optional: sample data to look around
-npm run dev     # then open http://localhost:3000
+npm run setup   # installs dependencies and prepares the local database
+npm run demo    # optional: adds fictional sample data
+npm run dev     # starts the web app and local agent
 ```
 
-The setup asks for a password, or makes one. Everything runs on your machine with a local database, with no
-account to create. Jev and the extra sources are optional: add their keys in Settings, which says what each
-one adds. Without Jev, a search still saves what the sources find, unranked. To put PostEcho online, see
-[docs/deploy.md](docs/deploy.md).
+Open http://localhost:3000 and log in with the password chosen or generated during setup.
+With sample data loaded, open Write to inspect the example drafts. Generating new text requires Claude Code.
+
+For a first live task, add writing examples in Settings, search a topic in Find Ideas, and use a result
+to generate three drafts. Choose one and edit it in Write.
+
+Add optional service keys in Settings. For online hosting, see [the deploy guide](docs/deploy.md).
 
 ## What it costs
 
-PostEcho itself is free, and so is hosting it. The services it uses bill you directly:
+PostEcho's code is free. Connected services have their own costs and limits.
 
 | | What for | Cost |
 | --- | --- | --- |
-| **Claude** | Writing: takes, edits, Humanize, a video's posts | Your Claude plan (Pro or Max), which Claude Code runs on |
-| **Jev** by TypeSafe | Optional: ranking a search, spam, the human score, Humanize's target | TypeSafe's pricing |
-| **X's API** | Optional: searching X | Billed by X per use |
-| **Vercel, Neon** | Optional: hosting it online | Free tiers |
+| **Claude** | Generating and revising text | Your Claude plan and its usage limits |
+| **Jev** by TypeSafe | Optional ranking and style feedback | TypeSafe's pricing |
+| **X's API** | Optional X search | X's API pricing |
+| **Vercel, Neon** | Optional online hosting | Provider plans and limits; Vercel Hobby is for personal, non-commercial use |
 
 ## How it works
 
@@ -110,21 +106,21 @@ flowchart LR
   web --> sources["Open sources<br/>Hacker News · GitHub · Bluesky · arXiv · …"]
 ```
 
-The web app never writes with a model itself. It puts a job in the queue; the agent on your computer
-long-polls for it, runs Claude Code headless on your own plan, reports each step, and sends the result
-back. Judging goes through [jev-judge](https://github.com/simojam93/jev-judge), a small MIT library by the
-same author: ranking what a search finds, spotting spam, scoring how human a text reads, and learning
-your style from what you keep. A built copy is vendored in `web/vendor/`, so one clone is all you need.
+The web app queues jobs. An agent on your computer runs Claude Code and returns the results.
+Keep that agent running for writing jobs, including when the web app is hosted online.
+Text used for writing goes to Claude; enabling Jev sends text for evaluation to TypeSafe.
+
+Jev integration uses [jev-judge](https://github.com/simojam93/jev-judge), an MIT library included in
+`web/vendor/`. See [Contributing](CONTRIBUTING.md#plugging-in-another-ai-writer) to add another writer.
 
 | Folder | What's in it |
 | --- | --- |
-| [`web/`](web/) | The Next.js 16 app: Find Ideas, Write, Calendar, Settings and the API, with Drizzle on Postgres. |
-| [`agent/`](agent/) | The daemon for your computer: takes jobs, runs `claude -p`, reports each step. |
-| [`scripts/`](scripts/) | `setup` and `dev`, and `media`, which makes the screenshots above from the sample data. |
-| [`docs/`](docs/) | The deploy guide, the case study, and the design spec and plan behind every feature. |
+| [`web/`](web/) | Web interface, API and database access. |
+| [`agent/`](agent/) | Local worker that runs Claude Code. |
+| [`scripts/`](scripts/) | Setup, development and sample-media scripts. |
+| [`docs/`](docs/) | Deployment, case study, specs and plans. |
 
-**Stack:** TypeScript, Next.js 16, React 19, Tailwind CSS 4, Drizzle ORM, Postgres (Neon) and PGlite,
-Vitest, Claude Code, Jev by TypeSafe.
+**Stack:** TypeScript, Next.js 16, React 19, Tailwind CSS 4, Drizzle, Postgres/PGlite, Vitest, Claude Code and Jev.
 
 ## Tests
 
@@ -132,16 +128,14 @@ Vitest, Claude Code, Jev by TypeSafe.
 npm test
 ```
 
-About 1,400 tests across the web app, the agent and the scripts, on PGlite and fakes: no network, no keys.
-CI runs them on every push.
+Runs the web, agent and setup-script tests with local data and test doubles. No service keys are needed.
 
 ## Contributing
 
-Issues and pull requests are welcome: a bug, a new source, a smoother setup on your platform, another AI
-writer. [CONTRIBUTING.md](CONTRIBUTING.md) explains how to set up, run the checks and find your way around,
-and the rules the project keeps. Please follow the [code of conduct](CODE_OF_CONDUCT.md), and report
-vulnerabilities privately, as [SECURITY.md](SECURITY.md) says.
+Help with a bug, a source adapter, setup or another AI writer. Start with
+[CONTRIBUTING.md](CONTRIBUTING.md), follow the [code of conduct](CODE_OF_CONDUCT.md), and report
+security issues through [SECURITY.md](SECURITY.md).
 
 ## License
 
-MIT, see [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).
