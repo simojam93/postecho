@@ -16,8 +16,8 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" v
   ${markPaths()}
   </g>
   <text x="400" y="300" font-family="${FONT}" font-size="104" font-weight="700" letter-spacing="-2"><tspan fill="#8b8d93">Post</tspan><tspan fill="#e6e8ec">Echo</tspan></text>
-  <text x="404" y="372" font-family="${FONT}" font-size="34" fill="#8b8d93">Find what's worth posting about, write it</text>
-  <text x="404" y="418" font-family="${FONT}" font-size="34" fill="#8b8d93">in your own voice, schedule it on X and LinkedIn.</text>
+  <text x="404" y="372" font-family="${FONT}" font-size="34" fill="#8b8d93">Find a topic and draft posts</text>
+  <text x="404" y="418" font-family="${FONT}" font-size="34" fill="#8b8d93">from your writing examples.</text>
 </svg>`;
 
 writeFileSync(out, await sharp(Buffer.from(svg)).png().toBuffer());

@@ -1,7 +1,7 @@
 {
   "name": "postecho",
   "private": true,
-  "description": "Find what's worth posting about, write it in your own voice, and schedule it on X and LinkedIn.",
+  "description": "Find a topic and draft posts from your writing examples. A self-hosted writing assistant for X and LinkedIn.",
   "license": "MIT",
   "engines": {
     "node": ">=22.9"
