@@ -1,119 +1,117 @@
 # PostEcho: a case study
 
-PostEcho finds what's worth posting about, writes it in my voice, and helps me schedule it on X and
-LinkedIn. I designed it and built it with Claude Code. This page is about the decisions behind it: what I
-wanted, the rules I held it to, and six calls that shaped how it works.
+I built PostEcho because I was spending too much time looking for something to write about on X. I wanted help finding an idea and getting a first draft down. I still wanted to choose what went out under my name.
+
+PostEcho searches public sources and uses Claude Code to draft posts from my writing examples and style guide. I review the draft, then open X or LinkedIn to schedule it there. The app keeps a calendar of the times I record.
+
+I designed and built it with Claude Code. These are the decisions that shaped it.
 
 ## The problem
 
-Posting regularly is three jobs. You find something worth saying, you say it in your own words, and you
-put it out at a good time. The tools I tried did one of two things. Some scrape and post on autopilot,
-which breaks the platforms' rules and sounds like a bot. The others give you a blank editor and a
-calendar, and leave the hard part to you.
+The part I kept getting stuck on came before scheduling: finding a subject I had something to say about, then turning it into a draft.
 
-I wanted something in between. It should do the searching and the first draft, sound like me, show its
-work, and never post anything I haven't looked at. It had to be free to host, too. PostEcho is a
-personal tool: one owner, one password, their own keys. It's open source, so anyone can run their own.
+A calendar didn't solve that. I wanted to bring the source and the draft into one place, with enough context to decide whether the idea was worth using.
 
-## The rules I held it to
+## Who it's for
 
-- **Clean before anything.** If a screen looks busy, that's a bug. Remove before adding.
-- **Say each thing once.** No copy that repeats what a title, a tooltip or a placeholder already says.
-- **Explain only where it's needed.** A short tour for the sections that need one, and a single window
-  the first time you open something new.
-- **The shortest path.** No step that isn't needed. One click should take you where you meant to go.
-- **Don't rebuild what the platforms already do.** X and LinkedIn schedule posts well, so PostEcho uses
-  their schedulers.
-- **The same problem gets the same solution.** Windows close with × or Esc everywhere, and the Archive is
-  the same in two places.
-- **Show the work while it happens.** Anything slow says what it's doing.
-- **Ready to use, in my voice.** What it writes should be publishable as it is and sound like me.
-- **It doesn't nudge.** The product suggests; I decide.
+PostEcho is for people who write on X and LinkedIn and want to run their own writing assistant. Each installation has one owner. It needs some setup, and generating text requires Claude Code with a working login.
 
-## Six decisions
+You can also load sample data to look around before connecting the writing service.
 
-### 1. Edit opens X's own scheduler
+## The rules
 
-Scheduled posts live in X's and LinkedIn's own schedulers. An editor inside PostEcho would change
-PostEcho's copy of a post but not the post itself, so every change would be made twice. Edit therefore
-opens the real thing: X's list of scheduled posts, or LinkedIn's post box, since LinkedIn has no direct
-link to its list. Neither platform lets an app read those posts back, so afterwards the card asks for the
-one thing PostEcho needs to keep the calendar right: *Moved it?*, and the new time.
+I used a few rules when reviewing the screens:
 
-![Calendar: the posts scheduled on X and LinkedIn, each with Edit on the platform](media/calendar.png)
+- Remove controls that compete with the task.
+- Explain an action where someone needs the explanation.
+- Show progress during long jobs.
+- Use the platforms' existing publishing tools.
+- Leave the final wording and publishing decision to the person.
 
-### 2. No "fits you" nudge
+## 1. Edit opens the platform
 
-The cards used to carry a green dot when a post matched what I usually keep. It was useful, and that was
-the problem: it pushed a choice before I'd read the post. The dot is gone. The ranking still learns from
-what I keep and how my posts did, but the choice is visibly mine.
+X and LinkedIn hold the scheduled post. Editing a separate copy inside PostEcho would leave two versions to keep track of.
 
-### 3. Every wait shows its steps
+Edit opens X's scheduled-posts page or LinkedIn's composer. After a change, I update the time in PostEcho myself. The calendar doesn't read changes back from either platform.
 
-A search, three takes and twelve posts from a video take from a few seconds to a couple of minutes. Each
-one shows its steps as they happen, with a timer and how long it usually takes, the way Claude Code shows
-its work. The sidebar does the same when you're elsewhere: a turning glyph on the tab that's busy, then a
-green tick for a moment when it's done.
+That manual step is a tradeoff. The interface needs to make it clear which system holds the actual post.
 
-### 4. A video becomes twelve ready posts, in my voice
+![The calendar shows the times I record after scheduling on X or LinkedIn. Shown with fictional sample data.](media/calendar.png)
 
-This one took three tries. First, PostEcho wrote posts about a video. Then it listed topics to choose
-from. The answer was simpler: twelve X posts, ready to publish, each on a different idea from the video
-and written as my own view. They don't mention the video or link to it, because I add a credit when I
-want one. They never hand me the speaker's story or results. Use opens one straight in the editor, with
-no takes to pick, because the choice is already made.
+*The calendar shows the times I record after scheduling on X or LinkedIn.*
 
-![Video posts: twelve ready X posts from one video, best first](media/video-posts.png)
+## 2. I removed a recommendation marker
 
-### 5. The archive keeps the workspace clean
+An earlier version put a green dot on posts that matched what I usually kept. I noticed myself choosing by the dot before reading the text, so I removed it.
 
-Once a post is scheduled it leaves Write's strip of posts in progress and moves to an Archive. Write
-shows only what still needs work. The Archive opens as the same window from Write and from Calendar.
+The ranking still influences what I see first. Removing the extra marker gives me one less cue to follow before I've read the result.
 
-### 6. One AI bar instead of a row of chips
+## 3. Long jobs show their progress
 
-The editor used to have:
-- a heading;
-- chips for "Shorter" and "Stronger hook";
-- a row of versions;
-- a hint about tags.
+A search and a batch of drafts take different amounts of time. Both show the current step and elapsed time while they run.
 
-Now there's:
-- one input, with the examples in its placeholder;
-- one Humanize button;
-- a small Voice menu;
-- one row of actions.
+If I switch sections, the sidebar shows which job is still working and briefly marks it when it finishes. I can keep using the app without repeatedly checking the same screen.
 
-The page does the same things and reads calmer.
+## 4. A video gives me drafts to review
 
-![Write: three takes, the chosen one, and one bar to change it](media/write.png)
+The first version wrote about the video. The next version offered a list of topics. I wanted to get closer to something I could edit.
+
+The current flow creates twelve X drafts from a video's transcript. If the transcript isn't available, it can use the description and chapters, or I can paste the transcript myself. Long transcripts are capped, so this isn't a claim that the model has watched the whole video.
+
+The prompt asks it not to borrow the speaker's personal experiences. I still need to check the output, make sure it reflects what I think, and credit the source where appropriate. A draft written in my style doesn't make someone else's idea mine.
+
+![Twelve draft posts from a video's transcript, ready for review. Shown with fictional sample data.](media/video-posts.png)
+
+*Twelve draft posts from a video's transcript, ready for review.*
+
+## 5. Scheduled drafts leave the workspace
+
+Once I mark a draft as scheduled, it moves to the Archive. Write stays focused on unfinished work.
+
+The same Archive is available from Write and Calendar, so I can get back to the draft from either place.
+
+## 6. Rewriting has one main input
+
+The editor used to have separate controls for several kinds of rewrite. I replaced them with one input where I can ask for the change I want.
+
+Humanize and the Voice menu sit beside it. That keeps the common action easy to find without filling the editor with buttons.
+
+![One input for edits, beside Humanize and the Voice menu. Shown with fictional sample data.](media/write.png)
+
+*One input for edits, beside Humanize and the Voice menu.*
 
 ## The AI, in plain words
 
-Two models do two different jobs.
+Claude writes the drafts using my examples, reference material and style guide. PostEcho calls Claude Code through an agent running on my computer. The text is processed by Claude's service.
 
-- **Claude writes.** It runs as Claude Code on my Mac, headless and on my own plan. It writes from my best
-  posts, a style guide and my own reference files.
-- **Jev judges.** It is a model by TypeSafe built to answer typed questions with calibrated scores. It
-  ranks what a search finds, flags spam and scores how human a text reads, out of 10. Humanize passes a
-  draft back and forth between the two until Jev calls it human.
-- **I decide.** Nothing is posted for me: every post goes out through X's and LinkedIn's own schedulers.
-  The style guide learns from the takes I keep, and each change comes as a proposal I apply or dismiss.
+Jev, from TypeSafe, is optional. It ranks search results and evaluates patterns in the writing. Humanize can use that feedback for up to three rewrites, keeping the best-scored version. Without scoring, it can still make a single rewrite.
 
-The judging lives in [jev-judge](https://github.com/simojam93/jev-judge), a small open-source library, so
-it can be used on its own.
+The score is useful feedback, but it doesn't establish whether a person wrote something or whether a draft is good. I read it and decide.
+
+Style-guide changes also need approval. PostEcho proposes an update based on the drafts I keep; I can apply or dismiss it.
+
+The Jev integration is available separately in [jev-judge](https://github.com/simojam93/jev-judge).
 
 ## Constraints
 
-- **Free to host:** Vercel's and Neon's free tiers, or just my Mac. The paid parts are services I already
-  use or choose: my Claude plan, Jev, and X's API when I turn it on.
-- **Official APIs and open sources only:** no scraping, no browser automation, nothing that acts as me
-  on a platform.
-- **One owner:** keys stay on the server and are never sent back to the browser.
+PostEcho has an MIT license and runs locally with its own database. Claude and optional services have their own costs and usage limits.
+
+The web app can also be hosted online, but the agent on my computer must be running to handle writing jobs. Self-hosting the app doesn't make the AI processing offline.
+
+Publishing stays manual. PostEcho opens the platform's composer, and I schedule the post there.
 
 ## How it was built
 
-Spec first. Every feature started as a short design and an implementation plan, and they are all in
-[`docs/specs`](specs) and [`docs/plans`](plans). Then came tests, about 1,400 of them, then the change.
-When I used it and something felt wrong, I said so and it changed the same day. Most of the decisions
-above came from those moments.
+The repository includes [design specs](specs), [implementation plans](plans) and tests. I built it with Claude Code and revised the interface as I used it. The recommendation marker and rewrite controls changed because they got in the way during that work.
+
+## Try it
+
+The repository has setup instructions for macOS and Linux with Node 22.9 or newer. After setup, `npm run demo` loads fictional sample data so you can explore the screens. New drafts require Claude Code logged in.
+
+[Code and setup instructions](../README.md#run-it)
+
+If you try it, I'd like to know where you get stuck between finding an idea and finishing a draft.
+
+![Explore the interface with the sample data included in the repository. Shown with fictional sample data.](media/find-ideas.png)
+
+*Explore the interface with the sample data included in the repository.*
