@@ -1,4 +1,4 @@
-# PostEcho icon
+# postecho icon
 
 A geometric **P** whose bowl sends out two fading echo arcs: a post that echoes. Silver `#e6e8ec` on the app's background `#08080a` (the app's palette, never orange).
 

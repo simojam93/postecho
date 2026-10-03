@@ -1,6 +1,6 @@
-# Putting PostEcho online
+# Putting postecho online
 
-Locally, PostEcho needs no account: `npm run setup` and `npm run dev` are enough. To reach it from your
+Locally, postecho needs no account: `npm run setup` and `npm run dev` are enough. To reach it from your
 phone, or to keep it running while your laptop sleeps, the web app goes on Vercel and its database on
 Neon. The agent stays on your computer, because that's where Claude Code runs on your own plan. Both free
 tiers are enough for one person.

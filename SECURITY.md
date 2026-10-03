@@ -7,7 +7,7 @@ private vulnerability reporting.
 Please include what you found, how to reproduce it, and the commit you tested. You'll get an answer as soon
 as possible, and credit in the fix if you want it.
 
-What PostEcho protects:
+What postecho protects:
 
 - **One owner per install**, behind one password: the session cookie is encrypted with `SESSION_SECRET`.
 - **The agent** authenticates with `AGENT_TOKEN`, and outside feeders with `CAPTURE_TOKEN`.

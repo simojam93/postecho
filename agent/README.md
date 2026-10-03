@@ -64,7 +64,7 @@ reaches out for a heartbeat, a failure there is reported but non-fatal.
 Install it once (substituting your own absolute path to this directory):
 
 ```bash
-sed -e 's|/ABSOLUTE/PATH/TO/PostEcho/agent|'"$PWD"'|g' \
+sed -e 's|/ABSOLUTE/PATH/TO/postecho/agent|'"$PWD"'|g' \
   launchd/com.postecho.agent.plist.example > ~/Library/LaunchAgents/com.postecho.agent.plist
 launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.postecho.agent.plist
 ```

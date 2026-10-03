@@ -1,4 +1,4 @@
-# PostEcho — web
+# postecho — web
 
 The Next.js app: Find Ideas, Write, Calendar and Settings, the job queue the agent works from, and the
 API behind them. The root [README](../README.md) has the full picture.

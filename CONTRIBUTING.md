@@ -1,6 +1,6 @@
-# Contributing to PostEcho
+# Contributing to postecho
 
-Thanks for looking. PostEcho is a self-hosted tool for one owner per install, and contributions that keep it
+Thanks for looking. postecho is a self-hosted tool for one owner per install, and contributions that keep it
 simple and useful are welcome: bug fixes, new sources, a better setup on your platform, another AI writer.
 For anything bigger than a fix, open an issue first so we can agree on the shape.
 

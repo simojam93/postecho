@@ -2,7 +2,7 @@
   <img src="web/src/app/icon.svg" width="72" alt="">
 </p>
 
-<h1 align="center">PostEcho</h1>
+<h1 align="center">postecho</h1>
 
 <p align="center">
   Find a topic and draft posts from your writing examples.<br>
@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/media/hero.gif" width="100%" alt="PostEcho's search, drafts and calendar, shown with sample data">
+  <img src="docs/media/hero.gif" width="100%" alt="postecho's search, drafts and calendar, shown with sample data">
 </p>
 
 > **Who it's for:** people who post on X and LinkedIn and want to run their own writing assistant.
@@ -30,7 +30,7 @@ Jev ranks results when enabled; search also works without it.
 
 ![Find Ideas with fictional sample results](docs/media/find-ideas.png)
 
-**Turn a video into posts.** Get twelve X drafts from a YouTube transcript. If unavailable, PostEcho
+**Turn a video into posts.** Get twelve X drafts from a YouTube transcript. If unavailable, postecho
 can use the description and chapters, or you can paste a transcript. Check facts and add attribution before publishing.
 
 ![Video drafts shown with fictional sample data](docs/media/video-posts.png)
@@ -40,8 +40,8 @@ Pick one and ask for changes, such as a shorter version or a LinkedIn post.
 
 ![Three sample drafts and the editor](docs/media/write.png)
 
-**Calendar.** Open X or LinkedIn to schedule a post, then record its time in PostEcho.
-If you change that time on the platform, update PostEcho too.
+**Calendar.** Open X or LinkedIn to schedule a post, then record its time in postecho.
+If you change that time on the platform, update postecho too.
 
 ![Calendar populated with fictional sample posts](docs/media/calendar.png)
 
@@ -58,7 +58,7 @@ If you change that time on the platform, update PostEcho too.
 ## Built by
 
 [Simone Lovera](https://github.com/simojam93), CPO at [Forte AI](https://www.forte-ai.com), designed and
-built PostEcho with Claude Code. Read the [design case study](docs/case-study.md).
+built postecho with Claude Code. Read the [design case study](docs/case-study.md).
 
 ---
 
@@ -84,7 +84,7 @@ Add optional service keys in Settings. For online hosting, see [the deploy guide
 
 ## What it costs
 
-PostEcho's code is free. Connected services have their own costs and limits.
+postecho's code is free. Connected services have their own costs and limits.
 
 | | What for | Cost |
 | --- | --- | --- |

@@ -1,8 +1,8 @@
-# PostEcho: a case study
+# postecho: a case study
 
-I built PostEcho because I was spending too much time looking for something to write about on X. I wanted help finding an idea and getting a first draft down. I still wanted to choose what went out under my name.
+I built postecho because I was spending too much time looking for something to write about on X. I wanted help finding an idea and getting a first draft down. I still wanted to choose what went out under my name.
 
-PostEcho searches public sources and uses Claude Code to draft posts from my writing examples and style guide. I review the draft, then open X or LinkedIn to schedule it there. The app keeps a calendar of the times I record.
+postecho searches public sources and uses Claude Code to draft posts from my writing examples and style guide. I review the draft, then open X or LinkedIn to schedule it there. The app keeps a calendar of the times I record.
 
 I designed and built it with Claude Code. These are the decisions that shaped it.
 
@@ -14,7 +14,7 @@ A calendar didn't solve that. I wanted to bring the source and the draft into on
 
 ## Who it's for
 
-PostEcho is for people who write on X and LinkedIn and want to run their own writing assistant. Each installation has one owner. It needs some setup, and generating text requires Claude Code with a working login.
+postecho is for people who write on X and LinkedIn and want to run their own writing assistant. Each installation has one owner. It needs some setup, and generating text requires Claude Code with a working login.
 
 You can also load sample data to look around before connecting the writing service.
 
@@ -30,9 +30,9 @@ I used a few rules when reviewing the screens:
 
 ## 1. Edit opens the platform
 
-X and LinkedIn hold the scheduled post. Editing a separate copy inside PostEcho would leave two versions to keep track of.
+X and LinkedIn hold the scheduled post. Editing a separate copy inside postecho would leave two versions to keep track of.
 
-Edit opens X's scheduled-posts page or LinkedIn's composer. After a change, I update the time in PostEcho myself. The calendar doesn't read changes back from either platform.
+Edit opens X's scheduled-posts page or LinkedIn's composer. After a change, I update the time in postecho myself. The calendar doesn't read changes back from either platform.
 
 That manual step is a tradeoff. The interface needs to make it clear which system holds the actual post.
 
@@ -82,23 +82,23 @@ Humanize and the Voice menu sit beside it. That keeps the common action easy to 
 
 ## The AI, in plain words
 
-Claude writes the drafts using my examples, reference material and style guide. PostEcho calls Claude Code through an agent running on my computer. The text is processed by Claude's service.
+Claude writes the drafts using my examples, reference material and style guide. postecho calls Claude Code through an agent running on my computer. The text is processed by Claude's service.
 
 Jev, from TypeSafe, is optional. It ranks search results and evaluates patterns in the writing. Humanize can use that feedback for up to three rewrites, keeping the best-scored version. Without scoring, it can still make a single rewrite.
 
 The score is useful feedback, but it doesn't establish whether a person wrote something or whether a draft is good. I read it and decide.
 
-Style-guide changes also need approval. PostEcho proposes an update based on the drafts I keep; I can apply or dismiss it.
+Style-guide changes also need approval. postecho proposes an update based on the drafts I keep; I can apply or dismiss it.
 
 The Jev integration is available separately in [jev-judge](https://github.com/simojam93/jev-judge).
 
 ## Constraints
 
-PostEcho has an MIT license and runs locally with its own database. Claude and optional services have their own costs and usage limits.
+postecho has an MIT license and runs locally with its own database. Claude and optional services have their own costs and usage limits.
 
 The web app can also be hosted online, but the agent on my computer must be running to handle writing jobs. Self-hosting the app doesn't make the AI processing offline.
 
-Publishing stays manual. PostEcho opens the platform's composer, and I schedule the post there.
+Publishing stays manual. postecho opens the platform's composer, and I schedule the post there.
 
 ## How it was built
 

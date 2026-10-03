@@ -1,6 +1,6 @@
 ---
 name: Idea
-about: Something PostEcho could do
+about: Something postecho could do
 labels: enhancement
 ---
 
