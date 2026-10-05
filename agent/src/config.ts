@@ -10,7 +10,10 @@ const EnvSchema = z.object({
   AGENT_TOKEN: z.string().min(1, "AGENT_TOKEN is required"),
   CLAUDE_BIN: z.string().min(1).default("claude"),
   CLAUDE_MODEL: z.string().min(1).default("sonnet"),
-  POLL_WAIT_SECONDS: z.coerce.number().int().min(0).max(25).default(25),
+  // Each claim returns at once by default: a request held open on Vercel's Fluid
+  // compute bills memory for every second it waits, all day long.
+  POLL_WAIT_SECONDS: z.coerce.number().int().min(0).max(25).default(0),
+  POLL_IDLE_SECONDS: z.coerce.number().int().min(1).max(300).default(5),
   CLAUDE_TIMEOUT_MS: z.coerce.number().int().positive().default(180000),
 });
 
@@ -20,6 +23,8 @@ export type Config = {
   claudeBin: string;
   claudeModel: string;
   pollWaitSeconds: number;
+  /** The pause after a claim that found nothing, before asking again. */
+  pollIdleSeconds: number;
   claudeTimeoutMs: number;
 };
 
@@ -52,6 +57,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     claudeBin: e.CLAUDE_BIN,
     claudeModel: e.CLAUDE_MODEL,
     pollWaitSeconds: e.POLL_WAIT_SECONDS,
+    pollIdleSeconds: e.POLL_IDLE_SECONDS,
     claudeTimeoutMs: e.CLAUDE_TIMEOUT_MS,
   };
 }

@@ -27,7 +27,7 @@ Edit `.env`:
   match the web app's own `AGENT_TOKEN`, since that's what authenticates every
   request this agent makes).
 - `CLAUDE_BIN` / `CLAUDE_MODEL` — usually fine as-is (`claude`, `sonnet`).
-- `POLL_WAIT_SECONDS` / `CLAUDE_TIMEOUT_MS` — tuning knobs, defaults are sane. Opus gets twice the Claude time, a whole-video read twice again, and no job runs past 9 minutes.
+- `POLL_WAIT_SECONDS` / `POLL_IDLE_SECONDS` / `CLAUDE_TIMEOUT_MS` — tuning knobs, defaults are sane. By default the agent asks for a job every 5 seconds and each request returns at once, so a hosted web app isn't kept running while it waits. Opus gets twice the Claude time, a whole-video read twice again, and no job runs past 9 minutes.
 
 Requires Node 22.9 or newer and a logged-in Claude Code CLI on this Mac. Two ways to
 authenticate the headless `claude -p` calls:

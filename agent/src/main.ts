@@ -25,8 +25,11 @@ function errorMessage(e: unknown): string {
 }
 
 /**
- * The long-poll loop: heartbeat every 60s -> claim one job (long-poll, up
- * to POLL_WAIT_SECONDS) -> run its handler -> postResult -> repeat. Single
+ * The poll loop: heartbeat every 60s -> claim one job (a quick ask by
+ * default; a long-poll of up to POLL_WAIT_SECONDS if set) -> run its handler
+ * -> postResult -> repeat, pausing POLL_IDLE_SECONDS after a claim that found
+ * nothing. The short ask is for hosting: on Vercel a long-poll keeps a
+ * function alive around the clock, and Fluid compute bills that time. Single
  * concurrency by construction (a plain sequential loop, never Promise.all
  * across jobs) — the point is one job on the owner's Mac at a time, not
  * throughput.
@@ -95,7 +98,10 @@ export async function runAgent(): Promise<void> {
     // stop signal arrived is still OURS (the server marked it claimed): run
     // and report it rather than abandoning it in `claimed` until the
     // 10-minute stale sweep. The while condition stops the loop right after.
-    if (!job) continue;
+    if (!job) {
+      await sleep(config.pollIdleSeconds * 1000);
+      continue;
+    }
 
     console.log(`[agent] claimed job ${job.id} (${job.kind})`);
     const startedAt = Date.now();

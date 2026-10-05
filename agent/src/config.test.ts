@@ -10,7 +10,8 @@ describe("loadConfig", () => {
       agentToken: "secret-token",
       claudeBin: "claude",
       claudeModel: "sonnet",
-      pollWaitSeconds: 25,
+      pollWaitSeconds: 0,
+      pollIdleSeconds: 5,
       claudeTimeoutMs: 180000,
     });
   });
@@ -22,6 +23,7 @@ describe("loadConfig", () => {
       CLAUDE_BIN: "/usr/local/bin/claude",
       CLAUDE_MODEL: "opus",
       POLL_WAIT_SECONDS: "10",
+      POLL_IDLE_SECONDS: "30",
       CLAUDE_TIMEOUT_MS: "5000",
     } as NodeJS.ProcessEnv);
 
@@ -29,6 +31,7 @@ describe("loadConfig", () => {
     expect(config.claudeBin).toBe("/usr/local/bin/claude");
     expect(config.claudeModel).toBe("opus");
     expect(config.pollWaitSeconds).toBe(10);
+    expect(config.pollIdleSeconds).toBe(30);
     expect(config.claudeTimeoutMs).toBe(5000);
   });
 
@@ -45,6 +48,12 @@ describe("loadConfig", () => {
   it("rejects an out-of-range POLL_WAIT_SECONDS", () => {
     expect(() =>
       loadConfig({ AGENT_TOKEN: "t", POLL_WAIT_SECONDS: "999" } as NodeJS.ProcessEnv),
+    ).toThrow(ConfigError);
+  });
+
+  it("rejects a POLL_IDLE_SECONDS under 1", () => {
+    expect(() =>
+      loadConfig({ AGENT_TOKEN: "t", POLL_IDLE_SECONDS: "0" } as NodeJS.ProcessEnv),
     ).toThrow(ConfigError);
   });
 
