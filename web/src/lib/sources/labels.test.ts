@@ -16,6 +16,7 @@ describe("SOURCE_LABELS", () => {
     expect(SOURCE_LABELS.x_post).toEqual({ label: "X", tag: "X" });
     expect(SOURCE_LABELS.note).toEqual({ label: "Note", tag: "NOTE" });
     expect(SOURCE_LABELS.article).toEqual({ label: "Article", tag: "WEB" });
+    expect(SOURCE_LABELS.repo_post).toEqual({ label: "Repo post", tag: "REPO" });
   });
 
   it("matches the documented label/tag pairs for each of the eleven discovery sources", () => {
@@ -36,13 +37,13 @@ describe("SOURCE_LABELS", () => {
     expect(new Set(tags).size).toBe(tags.length);
   });
 
-  it("has exactly fourteen entries: the adapters plus note/article/video_idea (Reddit taken out, 2026-09-25; video ideas 2026-09-27)", () => {
-    expect(Object.keys(SOURCE_LABELS)).toHaveLength(14);
+  it("has exactly fifteen entries: the adapters plus note/article/video_idea/repo_post (Reddit taken out, 2026-09-25; video ideas 2026-09-27; repo posts 2026-10-10)", () => {
+    expect(Object.keys(SOURCE_LABELS)).toHaveLength(15);
   });
 
   it("orders the filter row like ALL_ADAPTERS (lobsters/lemmy right after mastodon, before the keyed sources), then the manual kinds", () => {
     // X is both: a pasted X post and a searched one (with the owner's key) share the x_post kind.
-    expect(SOURCE_LABEL_ORDER).toEqual([...ALL_ADAPTERS.map((a) => a.name), "note", "article", "video_idea"]);
+    expect(SOURCE_LABEL_ORDER).toEqual([...ALL_ADAPTERS.map((a) => a.name), "note", "article", "video_idea", "repo_post"]);
   });
 });
 

@@ -32,6 +32,9 @@ export type Idea = {
     videoId?: string; order?: number; fromDescription?: boolean; format?: string;
     // A pasted video (api/videos/ideas): when it was pasted last — the Videos chips' order.
     pastedAt?: string;
+    // From a repo (2026-10-10): a source's type and when it was used last (the chips' order);
+    // a post's source (`format` is "x" | "linkedin" | "article" then).
+    sourceType?: string; usedAt?: string; repoId?: string; repoName?: string;
   };
 };
 
@@ -121,6 +124,8 @@ export function IdeaCard({ idea, onStatus, onUse, inStyle = false, onStyle }: {
     ? `rank — relevance ${Math.round(score ?? 0)}, quality ${Math.round(quality ?? 0)}`
     : undefined;
   const videoPost = isVideoPost(idea);
+  // A post from a repo (2026-10-10) is ready too: Use keeps it as it is.
+  const readyPost = videoPost || idea.kind === "repo_post";
 
   async function trigger(status: "used" | "dismissed" | "archived" | "kept" | "new") {
     if (busy) return;
@@ -191,7 +196,7 @@ export function IdeaCard({ idea, onStatus, onUse, inStyle = false, onStyle }: {
           (owner, 2026-09-27: "toglilo dappertutto, perché non mi voglio far condizionare").
           A video's topic has no source pill or author: all twelve come from the video its chip names (2026-09-27). */}
       <div className="flex min-h-5 items-center justify-between gap-2 text-sm text-text-dim">
-        {idea.kind === "video_idea" ? <span aria-hidden /> : (
+        {idea.kind === "video_idea" || idea.kind === "repo_post" ? <span aria-hidden /> : (
           <div className="flex min-w-0 items-center gap-2">
             <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-[10px] uppercase tracking-wide text-text-dim">
               {sourcePillLabel(idea)}
@@ -286,10 +291,10 @@ export function IdeaCard({ idea, onStatus, onUse, inStyle = false, onStyle }: {
           <button
             onClick={handleUse}
             disabled={busy}
-            data-tip={videoPost ? "Edit and schedule it in Write" : "Write a post from it"}
+            data-tip={readyPost ? "Edit and schedule it in Write" : "Write a post from it"}
             className="rounded-full bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink disabled:opacity-50"
           >
-            {using ? (videoPost ? "Opening…" : "Reading…") : "Use"}
+            {using ? (readyPost ? "Opening…" : "Reading…") : "Use"}
           </button>
         </div>
       </div>

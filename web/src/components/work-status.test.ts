@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { applyJobs, DONE_SHOWN_MS, POLL_MS, refreshWork, resetWork, trackWork, workSnapshot } from "./work-status";
+import { applyJobs, DONE_SHOWN_MS, POLL_MS, refreshWork, resetWork, TAB_OF_KIND, trackWork, workSnapshot } from "./work-status";
 
 beforeEach(() => { vi.useFakeTimers(); resetWork(); });
 afterEach(() => { resetWork(); vi.useRealTimers(); });
@@ -28,6 +28,10 @@ describe("the sidebar's work marks (2026-09-27: \"un charging che poi diventa un
     expect(workSnapshot()).toEqual({ find: "running", write: "running" });
     applyJobs([{ id: "a", kind: "revise_draft", status: "done" }, { id: "b", kind: "video_ideas", status: "failed" }]);
     expect(workSnapshot()).toEqual({ find: "failed", write: "done" });
+  });
+
+  it("a repo's posts work on Create posts (2026-10-10)", () => {
+    expect(TAB_OF_KIND.repo_posts).toBe("find");
   });
 
   it("stays working while another job on the tab still runs; a job never seen running shows nothing", () => {

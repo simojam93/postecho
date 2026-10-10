@@ -61,7 +61,7 @@ export function XSourceSection({ status, postsPerSearch, onPostsPerSearch, onKey
   return (
     <section className="space-y-3">
       <p className="text-xs text-text-dim">
-        Add your own X API key and Find Ideas searches X too, through the official API. X bills your developer account per use:
+        Add your own X API key and Trends searches X too, through the official API. X bills your developer account per use:
         ${X_PRICES_USD.postRead} per post read, and ${X_PRICES_USD.userRead} per author, looked up only for the X posts that make your results.
         Create an app and copy its Bearer Token at{" "}
         <a href="https://console.x.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-text">console.x.com</a>,

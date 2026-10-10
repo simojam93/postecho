@@ -106,6 +106,8 @@ export async function GET(request: Request) {
           createdAt: j.createdAt,
           finishedAt: j.finishedAt,
           result: j.kind === "video_ideas" ? withoutReadText(j.result) : j.result,
+          // From a repo (2026-10-10) says the job's format and count in its steps, and ↻ runs it again as it was.
+          ...(j.kind === "repo_posts" ? { payload: j.payload } : {}),
         };
       }),
     });

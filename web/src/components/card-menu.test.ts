@@ -52,6 +52,6 @@ describe("the card's own menu (2026-09-26: \"togli anche Aa… selezionabile con
 
   it("Settings says where Learn from its style went", () => {
     const html = renderToStaticMarkup(createElement(StyleInspirationSection, { analyzedAt: null }));
-    expect(html).toContain("right-click a card in Find Ideas");
+    expect(html).toContain("right-click a card in Trends");
   });
 });

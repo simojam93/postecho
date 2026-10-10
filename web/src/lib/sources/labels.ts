@@ -3,7 +3,7 @@ import type { SourceName } from "./types";
 export type SourceLabelInfo = { label: string; tag: string };
 
 /** Every idea "source" a card/pill can show, beyond the eleven discovery adapters. */
-export type ManualIdeaSource = "x_post" | "note" | "article" | "video_idea";
+export type ManualIdeaSource = "x_post" | "note" | "article" | "video_idea" | "repo_post";
 
 /**
  * name -> { label, tag } for every value `idea.kind`/`idea.meta.sourceName`
@@ -29,6 +29,7 @@ export const SOURCE_LABELS: Record<SourceName | ManualIdeaSource, SourceLabelInf
   note: { label: "Note", tag: "NOTE" },
   article: { label: "Article", tag: "WEB" },
   video_idea: { label: "Video idea", tag: "IDEA" },
+  repo_post: { label: "Repo post", tag: "REPO" },
 };
 
 /**

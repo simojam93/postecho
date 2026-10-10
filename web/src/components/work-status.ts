@@ -19,9 +19,10 @@ export type WorkTab = "find" | "write";
 export type WorkMark = "running" | "done" | "failed";
 export type WorkSnapshot = Readonly<Record<WorkTab, WorkMark | null>>;
 
-/** Which tab a job's work shows on: a video's posts in Find Ideas; a post's takes, edits and Humanize in Write. */
+/** Which tab a job's work shows on: a video's or a repo's posts in Create posts; a post's takes, edits and Humanize in Write. */
 export const TAB_OF_KIND: Readonly<Record<string, WorkTab>> = {
   video_ideas: "find",
+  repo_posts: "find",
   generate_from_video: "write",
   generate_from_idea: "write",
   revise_draft: "write",

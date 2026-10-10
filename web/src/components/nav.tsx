@@ -8,7 +8,8 @@ import { refreshWork, serverWorkSnapshot, subscribeWork, workSnapshot, type Work
 
 // Each with the app's tooltip: what the tab is for, in a sentence (2026-09-27).
 const tabs: Array<{ href: string; label: string; tip: string; work?: WorkTab }> = [
-  { href: "/", label: "Find Ideas", tip: "Find posts worth reacting to", work: "find" },
+  // Find Ideas until 2026-10-10, when posts from a repo came first: the section makes posts now.
+  { href: "/", label: "Create posts", tip: "Start posts from your code or the news", work: "find" },
   // The AI slop tab went on 2026-09-27 ("di base voglio che AI slop venga
   // messo qui"): a text pasted in Write gets its human score at once, and
   // its Humanize loop lives in jev-judge.

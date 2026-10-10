@@ -378,7 +378,7 @@ function WriteContent() {
         {postsError && <p className="text-sm text-danger">{postsError}</p>}
         <div className="flex items-start gap-3">
           <p className="text-sm text-text-dim">
-            Nothing in progress: press Use on an idea in <Link href="/" className="underline hover:text-text">Find Ideas</Link>.
+            Nothing in progress: press Use on an idea in <Link href="/" className="underline hover:text-text">Create posts</Link>.
           </p>
           <ArchiveButton refreshKey={postsKey} className="ml-auto" />
         </div>

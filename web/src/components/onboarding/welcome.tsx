@@ -72,7 +72,7 @@ const SOURCE_GUIDES: Array<KeyGuide["id"]> = ["bluesky", "youtube", "producthunt
 
 /** The loop, as the first step draws it. */
 const LOOP: Array<[tab: string, what: string]> = [
-  ["Find Ideas", "Posts worth reacting to"],
+  ["Create posts", "From your code or the news"],
   ["Write", "Takes in your voice"],
   ["Calendar", "Your posts by date"],
 ];

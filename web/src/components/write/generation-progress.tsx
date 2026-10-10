@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { SettingsLink } from "@/components/settings/settings-provider";
-import { WorkProgress } from "@/components/work-progress";
+import { WorkProgress, type WorkStep } from "@/components/work-progress";
 import { agentLooksOffline, generationSteps } from "./post-state";
 import type { JobInfo } from "./types";
 
@@ -30,8 +30,10 @@ const noClockOnServer = () => null;
  * post-state.ts's agentLooksOffline) adds the "Mac agent looks offline" hint
  * with a link to Settings, where the heartbeat age is shown.
  */
-export function GenerationProgress({ job, phase, typical = "usually 30–60 s" }: {
+export function GenerationProgress({ job, phase, steps: ownSteps, typical = "usually 30–60 s" }: {
   job: JobInfo;
+  /** The caller's own steps, for a job that isn't a post's takes (From a repo's posts). */
+  steps?: WorkStep[];
   /** One line of the caller's instead of the steps — e.g. a Humanize round (M3.6). */
   phase?: string | null;
   /** Overrides the typical duration shown after the elapsed counter. */
@@ -65,7 +67,7 @@ export function GenerationProgress({ job, phase, typical = "usually 30–60 s" }
 
   const nowMs = nowSec === null ? null : nowSec * 1000;
   const offline = queued && nowMs !== null && agentLooksOffline(heartbeatAt, nowMs);
-  const steps = phase !== undefined ? (phase ? [{ label: phase, done: false }] : []) : generationSteps(job);
+  const steps = ownSteps ?? (phase !== undefined ? (phase ? [{ label: phase, done: false }] : []) : generationSteps(job));
 
   return (
     <WorkProgress steps={steps} startedAt={job.createdAt} typical={typical} label="Generation progress">

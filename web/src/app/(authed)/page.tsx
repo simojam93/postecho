@@ -7,6 +7,9 @@ import { IdeaCard, type Idea } from "@/components/idea-card";
 import { NewVideoForm } from "@/components/new-video-form";
 import { VideoChips } from "@/components/videos/video-chips";
 import { VideoIdeas } from "@/components/videos/video-ideas";
+import { RepoForm } from "@/components/repos/repo-form";
+import { RepoChips } from "@/components/repos/repo-chips";
+import { RepoPosts } from "@/components/repos/repo-posts";
 import { FirstSearchBanner } from "@/components/onboarding/first-search-banner";
 import { getFirstSearch, IDEAS_CHANGED_EVENT, subscribeFirstSearch } from "@/components/onboarding/first-search";
 import { SearchesStrip } from "@/components/searches-strip";
@@ -28,9 +31,11 @@ type IdeaStatus = "used" | "dismissed" | "archived" | "kept" | "new";
 // liked rimangono quelli di valore"), keyed off idea.status with no schema
 // change: `new` = Trends/Videos (disposable), `kept`/`used` = Liked (kept
 // for good), `archived`/`dismissed` = gone.
-type Mode = "trends" | "videos" | "liked";
+type Mode = "repo" | "trends" | "videos" | "liked";
 // Each with the app's tooltip: what it holds, in a sentence (2026-09-27).
 const MODES: { key: Mode; label: string; tip: string }[] = [
+  // First since 2026-10-10 (spec: posts from a repo).
+  { key: "repo", label: "From a repo", tip: "Posts and articles from a folder or a GitHub repo" },
   { key: "trends", label: "Trends", tip: "Posts your searches found" },
   { key: "videos", label: "Video posts", tip: "X posts in your voice, from a video you paste" },
   { key: "liked", label: "Liked", tip: "Ideas you kept or used" },
@@ -63,6 +68,11 @@ function isTrendsResult(i: Idea): boolean {
  */
 function isVideo(i: Idea): boolean {
   return i.source === "manual" && i.kind === "youtube" && i.status === "new";
+}
+
+/** From a repo's sources (kind "repo", POST /api/repos): the ones not hidden by their chip's ×. */
+function isRepo(i: Idea): boolean {
+  return i.kind === "repo" && i.status === "new";
 }
 
 /**
@@ -126,6 +136,10 @@ export default function FindIdeasPage() {
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
   const [videoAgainId, setVideoAgainId] = useState<string | null>(null);
   const [videoRefreshKey, setVideoRefreshKey] = useState(0);
+  // From a repo: the same three for its sources.
+  const [selectedRepoId, setSelectedRepoId] = useState<string | null>(null);
+  const [repoAgainId, setRepoAgainId] = useState<string | null>(null);
+  const [repoRefreshKey, setRepoRefreshKey] = useState(0);
   // The sources without their keys yet (not ones the owner turned off): the
   // source row's "+ More sources" (2026-09-27: "to have better results connect
   // more sources… e li si rimanda ai settings", in the row, not a banner).
@@ -286,6 +300,43 @@ export default function FindIdeasPage() {
     await Promise.all([video, ...ideasOfVideo(video.id)].map((i) => setStatus(i.id, i.id === video.id ? "dismissed" : "archived")));
   }
 
+  /** Create in From a repo: its source is the latest used, so its chip is the one selected. */
+  function onRepoCreated(ideaId: string) {
+    void load();
+    setSelectedRepoId(ideaId);
+    setRepoRefreshKey((k) => k + 1);
+  }
+
+  /** ↻ on a repo chip: new posts as its last Create asked for them (GET /api/jobs carries that payload). */
+  async function repoAgain(repo: Idea) {
+    if (repoAgainId !== null) return;
+    setRepoAgainId(repo.id);
+    try {
+      const last = await fetch(`/api/jobs?ideaId=${repo.id}&kind=repo_posts&limit=1`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      const payload = last?.jobs?.[0]?.payload as { source?: unknown; brief?: unknown; format?: unknown; count?: unknown } | undefined;
+      const source = payload?.source ?? (repo.meta.sourceType === "folder" && repo.url?.startsWith("file://")
+        ? { type: "folder", path: repo.url.slice("file://".length) }
+        : { type: "github", url: repo.url });
+      const res = await fetch("/api/repos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source, brief: payload?.brief ?? "", format: payload?.format ?? "x", count: payload?.count ?? 3 }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        setError(typeof body?.error === "string" ? body.error : "Couldn't write new posts from it.");
+      }
+      onRepoCreated(repo.id);
+    } finally {
+      setRepoAgainId(null);
+    }
+  }
+
+  /** × on a repo chip: the source leaves the tab with its posts still to review; Liked ones stay. */
+  async function removeRepo(repo: Idea) {
+    await Promise.all([repo, ...postsOfRepo(repo.id)].map((i) => setStatus(i.id, i.id === repo.id ? "dismissed" : "archived")));
+  }
+
   function onSearchActivity() {
     load();
     setSearchesRefreshKey((k) => k + 1);
@@ -361,6 +412,14 @@ export default function FindIdeasPage() {
     .sort((a, b) => (b.meta.rank ?? -1) - (a.meta.rank ?? -1) || (a.meta.order ?? 0) - (b.meta.order ?? 0));
   const videoCounts = Object.fromEntries(videos.map((v) => [v.id, ideasOfVideo(v.id).length]));
   const activeVideo = videos.find((v) => v.id === selectedVideoId) ?? videos[0] ?? null;
+  // From a repo, the same way: a chip per source, the latest used selected, its posts in Claude's order.
+  const usedAt = (i: Idea) => Date.parse(i.meta.usedAt ?? i.createdAt);
+  const repos = ideas.filter(isRepo).sort((a, b) => usedAt(b) - usedAt(a));
+  const postsOfRepo = (repoId: string) => ideas
+    .filter((i) => i.kind === "repo_post" && i.status === "new" && i.meta.repoId === repoId)
+    .sort((a, b) => (a.meta.order ?? 0) - (b.meta.order ?? 0));
+  const repoCounts = Object.fromEntries(repos.map((r) => [r.id, postsOfRepo(r.id).length]));
+  const activeRepo = repos.find((r) => r.id === selectedRepoId) ?? repos[0] ?? null;
 
   // Videos shows the selected video's ideas (VideoIdeas) instead of this grid.
   const visible = mode === "liked" ? liked : [...trendsBase].sort(byRankThenRecency);
@@ -418,6 +477,11 @@ export default function FindIdeasPage() {
 
         {/* Liked has no input of its own: it's fed by ♥ and Use on the other two shelves. */}
         {mode === "trends" && <SearchBox onSearched={onSearchActivity} onBusyChange={setSearchBusy} />}
+        {mode === "repo" && <RepoForm onCreated={onRepoCreated} />}
+        {mode === "repo" && (
+          <RepoChips repos={repos} counts={repoCounts} selectedId={activeRepo?.id ?? null} onSelect={setSelectedRepoId}
+            onAgain={(repo) => void repoAgain(repo)} onRemove={(repo) => void removeRepo(repo)} againId={repoAgainId} />
+        )}
         {mode === "videos" && <NewVideoForm onSearched={onVideoPasted} />}
         {mode === "videos" && (
           <VideoChips videos={videos} counts={videoCounts} selectedId={activeVideo?.id ?? null} onSelect={setSelectedVideoId}
@@ -469,7 +533,12 @@ export default function FindIdeasPage() {
 
       {error && <p className="text-sm text-danger">{error}</p>}
 
-      {mode === "videos" ? (
+      {mode === "repo" ? (
+        activeRepo && (
+          <RepoPosts key={activeRepo.id} repo={activeRepo} posts={postsOfRepo(activeRepo.id)} onStatus={setStatus} onUse={useIdea}
+            onChanged={load} refreshKey={repoRefreshKey} />
+        )
+      ) : mode === "videos" ? (
         // Nothing to say before the first video: the box says it (2026-09-27: "questo toglilo").
         activeVideo && (
           <VideoIdeas key={activeVideo.id} video={activeVideo} ideas={ideasOfVideo(activeVideo.id)} onStatus={setStatus} onUse={useIdea}

@@ -48,7 +48,7 @@ export function StyleInspirationSection({ analyzedAt }: { analyzedAt: string | n
     <section className="space-y-3">
       <h3 className="text-sm font-semibold">Style inspiration</h3>
       <p className="text-xs text-text-dim">
-        Posts by other people whose style you like: right-click a card in Find Ideas (long-press on a phone) and pick <span className="font-medium text-text">Learn from its style</span>.
+        Posts by other people whose style you like: right-click a card in Trends (long-press on a phone) and pick <span className="font-medium text-text">Learn from its style</span>.
         Analyze my posts borrows their structure and rhythm for your style guide, never their voice or content.
       </p>
       {items && items.length > 0 && fresh > 0 && (

@@ -43,6 +43,15 @@ describe("GET /api/jobs", () => {
     expect(body.jobs[0].query).toBeNull();
   });
 
+  it("a repo_posts job carries its payload, so From a repo can say its steps and run it again; others don't", async () => {
+    const payload = { ideaId: "00000000-0000-0000-0000-000000000001", source: { type: "folder", path: "/r" }, brief: "", format: "x", count: 3 };
+    await state.db!.insert(jobs).values({ kind: "repo_posts", payload });
+    await state.db!.insert(jobs).values({ kind: "generate_from_video", payload: { url: "https://youtu.be/x" } });
+    const body = await (await GET(req())).json();
+    expect(body.jobs.find((j: { kind: string }) => j.kind === "repo_posts").payload).toEqual(payload);
+    expect(body.jobs.find((j: { kind: string }) => j.kind === "generate_from_video").payload).toBeUndefined();
+  });
+
   it("rejects an invalid kind", async () => {
     const res = await GET(req("?kind=not-a-real-kind"));
     expect(res.status).toBe(400);
