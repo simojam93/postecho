@@ -473,3 +473,86 @@ describe("materialize — video_ideas (2026-09-27: \"post X pronti all'attacco s
       .toEqual({ ok: false, error: "invalid result for kind" });
   });
 });
+
+describe("materialize — repo_posts (posts from a repo, 2026-10-10)", () => {
+  type TestDb = Awaited<ReturnType<typeof createTestDb>>;
+  async function repoIdea(db: TestDb, url = "https://github.com/a/b") {
+    return (await db.insert(ideas).values({ kind: "repo", url, title: "a/b", meta: { sourceType: "github" } }).returning())[0];
+  }
+  const repoJob = (id: string, ideaId: string, format: string): MaterializeJob => ({
+    id, kind: "repo_posts", payload: { ideaId, source: { type: "github", url: "https://github.com/a/b" }, brief: "", format, count: 3 },
+  });
+  const posts = (db: TestDb) => db.select().from(ideas).where(eq(ideas.kind, "repo_post"));
+
+  it("saves the posts under their repo, in Claude's order, with the format", async () => {
+    const db = await createTestDb();
+    const repo = await repoIdea(db);
+    const job = repoJob("00000000-0000-4000-8000-000000000011", repo.id, "x");
+    expect(await materialize(db as never, job, { posts: [{ text: "First" }, { text: "Second" }], repoName: "a/b" })).toEqual({ ok: true });
+    const rows = (await posts(db)).sort((a, b) => Number(a.meta.order) - Number(b.meta.order));
+    expect(rows.map((r) => r.content)).toEqual(["First", "Second"]);
+    expect(rows[0]).toMatchObject({ source: "manual", status: "new", title: null });
+    expect(rows[0].meta).toMatchObject({ jobId: job.id, repoId: repo.id, format: "x", order: 0, repoName: "a/b" });
+    expect(rows[0].meta).not.toHaveProperty("title");
+    // The same result again (a retried post) adds nothing.
+    await materialize(db as never, job, { posts: [{ text: "Third" }], repoName: "a/b" });
+    expect(await posts(db)).toHaveLength(2);
+  });
+
+  it("an article keeps its title", async () => {
+    const db = await createTestDb();
+    const repo = await repoIdea(db);
+    await materialize(db as never, repoJob("00000000-0000-4000-8000-000000000012", repo.id, "article"),
+      { posts: [{ title: "What we learned", text: "Body.\n\nA heading\n\nMore." }], repoName: "a/b" });
+    const [row] = await posts(db);
+    expect(row).toMatchObject({ title: "What we learned", content: "Body.\n\nA heading\n\nMore." });
+    expect(row.meta).toMatchObject({ format: "article", title: "What we learned" });
+  });
+
+  it("a new batch for the repo archives its unreviewed posts, keeps the Liked ones and leaves other repos alone", async () => {
+    const db = await createTestDb();
+    const repo = await repoIdea(db);
+    const other = await repoIdea(db, "file:///Users/me/dev/other");
+    await materialize(db as never, repoJob("00000000-0000-4000-8000-000000000013", repo.id, "x"), { posts: [{ text: "A" }, { text: "B" }], repoName: "a/b" });
+    await materialize(db as never, repoJob("00000000-0000-4000-8000-000000000014", other.id, "x"), { posts: [{ text: "O" }], repoName: "other" });
+    const [a] = (await posts(db)).filter((r) => r.content === "A");
+    await db.update(ideas).set({ status: "kept" }).where(eq(ideas.id, a.id));
+    await materialize(db as never, repoJob("00000000-0000-4000-8000-000000000015", repo.id, "x"), { posts: [{ text: "C" }], repoName: "a/b" });
+    expect((await posts(db)).map((r) => [r.content, r.status]).sort()).toEqual([["A", "kept"], ["B", "archived"], ["C", "new"], ["O", "new"]]);
+  });
+
+  it("drops posts out of the format's limits, and refuses a result with none left", async () => {
+    const db = await createTestDb();
+    const repo = await repoIdea(db);
+    await materialize(db as never, repoJob("00000000-0000-4000-8000-000000000016", repo.id, "x"),
+      { posts: [{ text: "ok" }, { text: "x".repeat(281) }], repoName: "a/b" });
+    expect((await posts(db)).map((r) => r.content)).toEqual(["ok"]);
+    await materialize(db as never, repoJob("00000000-0000-4000-8000-000000000017", repo.id, "linkedin"),
+      { posts: [{ text: "too short" }, { text: "l".repeat(700) }, { text: "l".repeat(4001) }], repoName: "a/b" });
+    expect((await posts(db)).filter((r) => r.meta.format === "linkedin").map((r) => r.content!.length)).toEqual([700]);
+    const articleJob = repoJob("00000000-0000-4000-8000-000000000018", repo.id, "article");
+    expect(await materialize(db as never, articleJob, { posts: [{ text: "no title" }, { title: "t".repeat(101), text: "b" }], repoName: "a/b" }))
+      .toEqual({ ok: false, error: "invalid result for kind" });
+    expect(await materialize(db as never, articleJob, { posts: [{ title: "T", text: "b".repeat(12_001) }], repoName: "a/b" }))
+      .toEqual({ ok: false, error: "invalid result for kind" });
+  });
+
+  it("refuses a result of the wrong shape, or a job without a format", async () => {
+    const db = await createTestDb();
+    const repo = await repoIdea(db);
+    const job = repoJob("00000000-0000-4000-8000-000000000019", repo.id, "x");
+    for (const result of [{ posts: [], repoName: "a/b" }, { posts: [{ text: "a" }] }, { drafts: [{ xText: "a" }] }, null]) {
+      expect(await materialize(db as never, job, result)).toEqual({ ok: false, error: "invalid result for kind" });
+    }
+    expect(await materialize(db as never, repoJob("00000000-0000-4000-8000-000000000021", repo.id, "thread"), { posts: [{ text: "a" }], repoName: "a/b" }))
+      .toEqual({ ok: false, error: "invalid result for kind" });
+    expect(await posts(db)).toHaveLength(0);
+  });
+
+  it("the repo was removed meanwhile: nothing to hang the posts on", async () => {
+    const db = await createTestDb();
+    expect(await materialize(db as never, repoJob("00000000-0000-4000-8000-000000000020", "00000000-0000-4000-8000-0000000000ff", "x"),
+      { posts: [{ text: "a" }], repoName: "a/b" })).toEqual({ ok: true });
+    expect(await posts(db)).toHaveLength(0);
+  });
+});

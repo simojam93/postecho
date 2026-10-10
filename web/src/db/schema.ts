@@ -23,6 +23,10 @@ export const ideaKind = pgEnum("idea_kind", [
   // A post idea PostEcho found in a pasted video's transcript (2026-09-27:
   // "it should take all the script of the video and create some post ideas").
   "video_idea",
+  // Posts from a repo (2026-10-10): "repo" is the source, a folder on the owner's computer
+  // (url file://<path>) or a public GitHub repository; "repo_post" is a post written from it by a
+  // repo_posts job (materialize.ts's materializeRepoPosts). Appended, same rule as above.
+  "repo", "repo_post",
 ]);
 export const ideaSource = pgEnum("idea_source", ["manual", "scout"]);
 // "kept" (M1.5 search-results UX round, 2026-09-21) is the ♥ positive taste
@@ -72,6 +76,10 @@ export const jobKind = pgEnum("job_kind", [
   // the style guide, which waits in Settings › Voice until they apply it
   // (materialize.ts's materializeStyleProposal). Appended, same rule as above.
   "learn_style",
+  // Posts from a repo (2026-10-10): "repo_posts" has Claude Code read a folder or a public GitHub
+  // repo on the owner's computer and write posts from it; "pick_folder" opens the computer's folder
+  // picker and sends back the path. Appended, same rule as above.
+  "repo_posts", "pick_folder",
 ]);
 export const jobStatus = pgEnum("job_status", ["queued", "claimed", "done", "failed"]);
 
@@ -99,6 +107,10 @@ export const drafts = pgTable("drafts", {
   favorite: boolean("favorite").default(false).notNull(),
   parentId: uuid("parent_id").references((): AnyPgColumn => drafts.id),
   imagePrompt: text("image_prompt"),
+  // An X article (posts from a repo, 2026-10-10): a title and a long body, set instead of
+  // xText/linkedinText. Null on every other draft.
+  articleTitle: text("article_title"),
+  articleText: text("article_text"),
   // `jobId` (M2 agent+generation, 2026-09-22): the generate_from_video /
   // generate_from_idea job whose result produced this draft. Lets the result
   // handler (materialize.ts, task A3) check "have drafts for this jobId

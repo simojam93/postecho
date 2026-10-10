@@ -228,6 +228,46 @@ describe("POST /api/drafts/from-idea", () => {
     expect(await state.db!.select().from(drafts).where(eq(drafts.ideaId, post.id))).toHaveLength(1);
   });
 
+  describe("a post from a repo becomes the post's version as it is: no job (2026-10-10)", () => {
+    const repoPost = async (format: string, content: string, title?: string) => (await state.db!.insert(ideas).values({
+      kind: "repo_post", title: title ?? null, content,
+      meta: { jobId: "00000000-0000-4000-8000-000000000001", repoId: "r", format, order: 0, ...(title ? { title } : {}) },
+    }).returning())[0];
+
+    it("an X post", async () => {
+      const post = await repoPost("x", "We shipped tier gating in a week.");
+      expect((await POST(req({ ideaId: post.id }))).status).toBe(201);
+      expect(await state.db!.select().from(jobs)).toHaveLength(0);
+      const rows = await state.db!.select().from(drafts).where(eq(drafts.ideaId, post.id));
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ status: "kept", xText: post.content, linkedinText: null, articleTitle: null, articleText: null });
+      expect(rows[0].meta).toMatchObject({ voice: "mine", overLimit: false });
+      const [after] = await state.db!.select().from(ideas).where(eq(ideas.id, post.id));
+      expect(after.status).toBe("used");
+      // Use again: the post is already in Write.
+      expect((await POST(req({ ideaId: post.id }))).status).toBe(201);
+      expect(await state.db!.select().from(drafts).where(eq(drafts.ideaId, post.id))).toHaveLength(1);
+    });
+
+    it("a LinkedIn post", async () => {
+      const post = await repoPost("linkedin", "A longer post about the launch. ".repeat(25));
+      expect((await POST(req({ ideaId: post.id }))).status).toBe(201);
+      const [draft] = await state.db!.select().from(drafts).where(eq(drafts.ideaId, post.id));
+      expect(draft).toMatchObject({ status: "kept", xText: null, linkedinText: post.content, articleTitle: null, articleText: null });
+      expect(draft.meta).toMatchObject({ voice: "mine" });
+    });
+
+    it("an X article: its title and body", async () => {
+      const post = await repoPost("article", "Intro.\n\nHow it works\n\nThe body.", "What tier gating taught us");
+      expect((await POST(req({ ideaId: post.id }))).status).toBe(201);
+      const [draft] = await state.db!.select().from(drafts).where(eq(drafts.ideaId, post.id));
+      expect(draft).toMatchObject({
+        status: "kept", xText: null, linkedinText: null, articleTitle: "What tier gating taught us", articleText: post.content,
+      });
+      expect(await state.db!.select().from(jobs)).toHaveLength(0);
+    });
+  });
+
   it("a Videos topic writes from the whole text its video_ideas job read, about that topic (2026-09-27)", async () => {
     const [video] = await state.db!.insert(ideas).values({ url: "https://youtu.be/v", kind: "youtube", title: "The talk" }).returning();
     const [ideasJob] = await state.db!.insert(jobs).values({

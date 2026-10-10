@@ -346,6 +346,19 @@ describe("heartbeat", () => {
     expect(new Date(hb as string).getTime()).toBeGreaterThan(Date.now() - 10_000);
   });
 
+  it("remembers the job kinds the agent says it serves (posts from a repo, 2026-10-10)", async () => {
+    const beat = (body: unknown) => heartbeat(new Request("http://test", {
+      method: "POST", headers: { ...auth, "Content-Type": "application/json" }, body: JSON.stringify(body),
+    }));
+    const { getSetting } = await import("@/lib/settings");
+    expect((await beat({ kinds: ["a", "b"] })).status).toBe(200);
+    expect(await getSetting(state.db as never, "agentKinds")).toEqual(["a", "b"]);
+    // Anything but a list of strings leaves the last list as it was.
+    expect((await beat({ kinds: [1, "c"] })).status).toBe(200);
+    expect((await beat({})).status).toBe(200);
+    expect(await getSetting(state.db as never, "agentKinds")).toEqual(["a", "b"]);
+  });
+
   it("answers with the Claude model the owner picked, Sonnet by default (2026-09-26)", async () => {
     const beat = () => heartbeat(new Request("http://test", {
       method: "POST", headers: { ...auth, "Content-Type": "application/json" }, body: JSON.stringify({ kinds: [] }),
