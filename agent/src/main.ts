@@ -3,7 +3,7 @@ import { loadConfig } from "./config.js";
 import { HandlerDeps, SERVED_KINDS } from "./handlers.js";
 import { pickFolder } from "./pick-folder.js";
 import { createPostEchoClient } from "./postecho.js";
-import { resolveRepoOnThisComputer } from "./repo-source.js";
+import { removeCloneOnThisComputer, resolveRepoOnThisComputer } from "./repo-source.js";
 import { fetchTranscript } from "./transcript.js";
 import { runAgentLoop } from "./run.js";
 import { createWorker, errorMessage } from "./worker.js";
@@ -32,6 +32,7 @@ export async function runAgent(): Promise<void> {
     fetchTranscript,
     checkSlop: (text, platform) => client.slopCheck(text, platform),
     resolveRepo: resolveRepoOnThisComputer,
+    removeClone: removeCloneOnThisComputer,
     pickFolder: () => pickFolder(),
   };
   const worker = createWorker({ client, runner, deps, kinds: SERVED_KINDS, pollWaitSeconds: config.pollWaitSeconds });

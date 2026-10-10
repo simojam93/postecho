@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { parseGithubUrl, resolveRepo, type GitRunner } from "./repo-source.js";
+import { parseGithubUrl, removeClone, resolveRepo, type GitRunner } from "./repo-source.js";
 
 const dir = { isDirectory: () => true };
 const file = { isDirectory: () => false };
@@ -82,5 +82,20 @@ describe("resolveRepo", () => {
       { git, reposDir: "/repos", stat: async () => null },
     )).rejects.toThrow("This isn't a GitHub repository link: https://gitlab.com/a/b");
     expect(git).not.toHaveBeenCalled();
+  });
+});
+
+describe("removeClone (a clone stays only while its repo is pinned, 2026-10-10)", () => {
+  it("deletes a GitHub source's clone under reposDir", async () => {
+    const rm = vi.fn(async () => {});
+    await removeClone({ type: "github", url: "https://github.com/a/b.git" }, { reposDir: "/repos", rm });
+    expect(rm).toHaveBeenCalledWith("/repos/a__b", { recursive: true, force: true });
+  });
+
+  it("never touches a folder, nor a link that isn't a GitHub repository", async () => {
+    const rm = vi.fn(async () => {});
+    await removeClone({ type: "folder", path: "/Users/me/dev/postecho" }, { reposDir: "/repos", rm });
+    await removeClone({ type: "github", url: "https://gitlab.com/a/b" }, { reposDir: "/repos", rm });
+    expect(rm).not.toHaveBeenCalled();
   });
 });

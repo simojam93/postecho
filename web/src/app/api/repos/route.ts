@@ -53,7 +53,8 @@ const bad = (error: string) => Response.json({ error }, { status: 400 });
  * "linkedin" | "article", count?: 1-6 }`. The source becomes a `repo` idea (url `file://<path>` or
  * the plain GitHub link, title the folder's name or `owner/name`, `meta.sourceType`), reused when
  * the same source comes again, and a `repo_posts` job asks the agent to read it and write `count`
- * posts in the format; materialize.ts saves them as `repo_post` ideas under the source. Answers
+ * posts in the format; materialize.ts saves them as `repo_post` ideas under the source. A pinned
+ * source (meta.favorite) adds `keepClone: true`: the agent keeps its GitHub clone. Answers
  * `{ ideaId, jobId }`, or 409 with the update message when the agent's last heartbeat didn't list
  * repo_posts (lib/agent-kinds.ts), before anything is saved.
  */
@@ -101,7 +102,11 @@ export async function POST(request: Request) {
     const [job] = await db.insert(jobs).values({
       kind: "repo_posts",
       // The posts already written from it in this format, so this ask finds other angles (owner, 2026-10-10).
-      payload: { ideaId: repo.id, source, brief: brief.trim(), format, count, ...(previous.length ? { previous } : {}) },
+      payload: {
+        ideaId: repo.id, source, brief: brief.trim(), format, count,
+        ...(previous.length ? { previous } : {}),
+        ...(repo.meta.favorite === true ? { keepClone: true } : {}),
+      },
     }).returning();
     return jobCreated({ ideaId: repo.id, jobId: job.id }, job.id);
   } catch (err) {

@@ -78,6 +78,8 @@ export type HandlerDeps = {
   reportProgress?: (progress: Record<string, unknown>) => Promise<void>;
   /** repo_posts: the directory a source is read from (repo-source.ts's resolveRepo with real git and ~/.postecho/repos). */
   resolveRepo?: (source: RepoSource) => Promise<{ dir: string; name: string }>;
+  /** After a job read a GitHub source not pinned (no keepClone): deletes its clone (repo-source.ts's removeClone). */
+  removeClone?: (source: RepoSource) => Promise<void>;
   /** pick_folder: the OS folder picker on this computer (pick-folder.ts). */
   pickFolder?: () => Promise<PickFolderResult>;
 };
@@ -166,6 +168,8 @@ const ReviseDraftPayload = z
       z.object({ type: z.literal("folder"), path: z.string().trim().min(1) }),
       z.object({ type: z.literal("github"), url: z.string().trim().min(1) }),
     ]).nullish(),
+    // The repo is pinned on the web: its GitHub clone stays after the job (2026-10-10).
+    keepClone: z.boolean().nullish(),
   })
   .refine((p) => Boolean(p.xText || p.linkedinText), {
     message: "revise_draft needs an xText and/or a linkedinText to revise",
@@ -431,25 +435,30 @@ export async function handleReviseDraft(
   if (p.mode) {
     let editDeps = deps;
     let sourceText = p.sourceText ?? undefined;
-    if (p.repo && (p.mode === "sync_linkedin" || p.mode === "sync_x") && deps.resolveRepo) {
-      const repo = await deps.resolveRepo(p.repo);
-      editDeps = { ...deps, runClaudeJson: (o) => deps.runClaudeJson({ ...o, cwd: repo.dir, readOnlyTools: true, long: true }) };
-      sourceText = `The post came from the repository "${repo.name}", your working directory. Read it with Read, Glob and Grep for the detail the other version has no room for: what it does, the decisions behind it, the details in the code. Never invent what the repository doesn't show.`;
+    const repoSource = p.repo && (p.mode === "sync_linkedin" || p.mode === "sync_x") && deps.resolveRepo ? p.repo : null;
+    try {
+      if (repoSource) {
+        const repo = await deps.resolveRepo!(repoSource);
+        editDeps = { ...deps, runClaudeJson: (o) => deps.runClaudeJson({ ...o, cwd: repo.dir, readOnlyTools: true, long: true }) };
+        sourceText = `The post came from the repository "${repo.name}", your working directory. Read it with Read, Glob and Grep for the detail the other version has no room for: what it does, the decisions behind it, the details in the code. Never invent what the repository doesn't show.`;
+      }
+      return await handleEdit(
+        {
+          mode: p.mode,
+          xText: p.xText ?? undefined,
+          linkedinText: p.linkedinText ?? undefined,
+          sourceText,
+          voice: p.voice ?? "reaction",
+          history: p.history ?? [],
+          instruction: p.instruction,
+        },
+        systemPrompt(profile),
+        editDeps,
+        profile,
+      );
+    } finally {
+      if (repoSource) await releaseRepo(repoSource, p.keepClone, deps);
     }
-    return handleEdit(
-      {
-        mode: p.mode,
-        xText: p.xText ?? undefined,
-        linkedinText: p.linkedinText ?? undefined,
-        sourceText,
-        voice: p.voice ?? "reaction",
-        history: p.history ?? [],
-        instruction: p.instruction,
-      },
-      systemPrompt(profile),
-      editDeps,
-      profile,
-    );
   }
   return deps.runClaudeJson({
     prompt: revisePrompt({
@@ -673,7 +682,22 @@ const RepoPostsPayload = z.object({
   count: z.number().int().min(1).max(6),
   // Posts already written from this source (web's api/repos), so this ask finds other angles.
   previous: z.array(z.string().max(1000)).max(30).nullish(),
+  // The repo is pinned on the web: its GitHub clone stays after the job (2026-10-10).
+  keepClone: z.boolean().nullish(),
 });
+
+/**
+ * Once a job that read a source ends, done or failed: a GitHub clone goes unless the repo is
+ * pinned (keepClone). A folder stays where it is. A delete that fails only leaves the clone.
+ */
+async function releaseRepo(source: RepoSource, keepClone: boolean | null | undefined, deps: HandlerDeps): Promise<void> {
+  if (source.type !== "github" || keepClone || !deps.removeClone) return;
+  try {
+    await deps.removeClone(source);
+  } catch (e) {
+    console.warn("couldn't delete the clone of", source.url, e);
+  }
+}
 
 async function reportRepoPosts(deps: HandlerDeps, phase: "fetching" | "reading" | "writing"): Promise<void> {
   if (!deps.reportProgress) return;
@@ -694,21 +718,25 @@ export async function handleRepoPosts(
 ): Promise<{ posts: Array<{ text: string; title?: string }>; repoName: string }> {
   const p = RepoPostsPayload.parse(payload);
   if (!deps.resolveRepo) throw new Error("repo_posts: this agent can't read repositories");
-  if (p.source.type === "github") await reportRepoPosts(deps, "fetching");
-  const repo = await deps.resolveRepo(p.source);
-  const profile = await deps.getProfile();
-  await reportRepoPosts(deps, "reading");
-  await reportRepoPosts(deps, "writing");
-  const { posts } = await deps.runClaudeJson({
-    prompt: repoPostsPrompt({ repoName: repo.name, brief: p.brief ?? "", format: p.format, count: p.count, previous: p.previous ?? undefined }),
-    system: systemPrompt(profile),
-    schema: REPO_SCHEMAS[p.format],
-    parse: parseRepoPosts(p.format),
-    cwd: repo.dir,
-    readOnlyTools: true,
-  });
-  const clean = hashtagsAllowed(profile) ? posts : posts.map((post) => ({ ...post, text: stripHashtagLines(post.text) }));
-  return { posts: clean.slice(0, p.count), repoName: repo.name };
+  try {
+    if (p.source.type === "github") await reportRepoPosts(deps, "fetching");
+    const repo = await deps.resolveRepo(p.source);
+    const profile = await deps.getProfile();
+    await reportRepoPosts(deps, "reading");
+    await reportRepoPosts(deps, "writing");
+    const { posts } = await deps.runClaudeJson({
+      prompt: repoPostsPrompt({ repoName: repo.name, brief: p.brief ?? "", format: p.format, count: p.count, previous: p.previous ?? undefined }),
+      system: systemPrompt(profile),
+      schema: REPO_SCHEMAS[p.format],
+      parse: parseRepoPosts(p.format),
+      cwd: repo.dir,
+      readOnlyTools: true,
+    });
+    const clean = hashtagsAllowed(profile) ? posts : posts.map((post) => ({ ...post, text: stripHashtagLines(post.text) }));
+    return { posts: clean.slice(0, p.count), repoName: repo.name };
+  } finally {
+    await releaseRepo(p.source, p.keepClone, deps);
+  }
 }
 
 /** pick_folder: the OS folder picker on this computer -> { path } or { cancelled: true }. */

@@ -340,6 +340,17 @@ describe("POST /api/drafts/:id/revise", () => {
     expect((await edit.json()).job.payload.repo).toBeUndefined();
   });
 
+  it("a pinned repo's clone is kept: keepClone goes with its source (2026-10-10)", async () => {
+    const { eq } = await import("drizzle-orm");
+    const [repo] = await state.db!.insert(ideas).values({ kind: "repo", url: "https://github.com/a/b", title: "a/b", meta: { sourceType: "github", favorite: true } }).returning();
+    const [post] = await state.db!.insert(ideas).values({ kind: "repo_post", content: "the X post", meta: { repoId: repo.id, format: "x" } }).returning();
+    const [d] = await state.db!.insert(drafts).values({ ideaId: post.id, xText: "the X post", status: "kept" }).returning();
+    const sync = () => postRevise(jsonReq("http://test", "POST", { instruction: "Write the LinkedIn version", mode: "sync_linkedin" }), { params: Promise.resolve({ id: d.id }) });
+    expect((await (await sync()).json()).job.payload).toMatchObject({ repo: { type: "github", url: "https://github.com/a/b" }, keepClone: true });
+    await state.db!.update(ideas).set({ meta: { sourceType: "github", favorite: false } }).where(eq(ideas.id, repo.id));
+    expect((await (await sync()).json()).job.payload.keepClone).toBeUndefined();
+  });
+
   it("Edit with Claude: a voice switch is remembered on the idea; the default follows where the idea came from", async () => {
     const [note] = await state.db!.insert(ideas).values({ kind: "note", content: "my notes" }).returning();
     const [draft] = await state.db!.insert(drafts).values({ ideaId: note.id, xText: "x", status: "kept" }).returning();
