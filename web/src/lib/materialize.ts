@@ -383,6 +383,70 @@ async function materializeVideoIdeas(db: typeof Db, job: MaterializeJob, result:
 }
 
 /**
+ * repo_posts (posts from a repo, 2026-10-10): the agent's `{ posts: [{ text, title? }], repoName }`.
+ * Each post is held to its format's limits, the agent's own again with LinkedIn's ceiling raised to
+ * 4,000; a post outside them is dropped, as the agent drops it, and a result left with none is refused.
+ */
+const RepoPostsResult = z.object({
+  posts: z.array(z.object({ text: z.string(), title: z.string().optional() })).min(1).max(25),
+  repoName: z.string().min(1).max(200),
+});
+const RepoFormat = z.enum(["x", "linkedin", "article"]);
+const REPO_POST_BY_FORMAT = {
+  x: z.object({ text: z.string().trim().min(1).max(280) }),
+  linkedin: z.object({ text: z.string().trim().min(600).max(4000) }),
+  article: z.object({ title: z.string().trim().min(1).max(100), text: z.string().trim().min(1).max(12_000) }),
+} as const;
+
+/**
+ * The posts become repo_post rows under their source (the `repo` idea), in Claude's order
+ * (meta.order), with the format, the article's title (also the row's title) and the repo's name.
+ * Use keeps one as the post's version (POST /api/drafts/from-idea). A new batch for the same
+ * source archives its posts still unreviewed; Liked ones stay. Once per job.
+ */
+async function materializeRepoPosts(db: typeof Db, job: MaterializeJob, result: unknown): Promise<MaterializeOutcome> {
+  const parsed = RepoPostsResult.safeParse(result);
+  const format = RepoFormat.safeParse(job.payload.format);
+  if (!parsed.success || !format.success) return { ok: false, error: INVALID_SHAPE_ERROR };
+  const itemSchema = REPO_POST_BY_FORMAT[format.data];
+  const posts = parsed.data.posts.flatMap((post): Array<{ text: string; title: string | null }> => {
+    const item = itemSchema.safeParse(post);
+    if (!item.success) return [];
+    const data: { text: string; title?: string } = item.data;
+    return [{ text: data.text, title: data.title ?? null }];
+  });
+  if (posts.length === 0) return { ok: false, error: INVALID_SHAPE_ERROR };
+
+  const repoId = typeof job.payload.ideaId === "string" && z.uuid().safeParse(job.payload.ideaId).success ? job.payload.ideaId : null;
+  const [repo] = repoId ? await db.select().from(ideas).where(eq(ideas.id, repoId)).limit(1) : [];
+  // The source was removed meanwhile: nothing to hang the posts on.
+  if (!repo) return { ok: true };
+  const [already] = await db.select({ id: ideas.id }).from(ideas).where(sql`${ideas.meta}->>'jobId' = ${job.id}`).limit(1);
+  if (already) return { ok: true };
+
+  await db.update(ideas).set({ status: "archived" }).where(and(
+    eq(ideas.kind, "repo_post"),
+    eq(ideas.status, "new"),
+    sql`${ideas.meta}->>'repoId' = ${repo.id}`,
+  ));
+  await db.insert(ideas).values(posts.map((post, order) => ({
+    kind: "repo_post" as const,
+    source: "manual" as const,
+    title: post.title,
+    content: post.text,
+    meta: {
+      jobId: job.id,
+      repoId: repo.id,
+      repoName: parsed.data.repoName,
+      format: format.data,
+      order,
+      ...(post.title ? { title: post.title } : {}),
+    },
+  })));
+  return { ok: true };
+}
+
+/**
  * Turns an agent's job result into durable state — drafts and settings —
  * before the result route flips the job to `done` (see jobs/[id]/result/
  * route.ts). Each kind validates `result`'s shape itself (via zod) rather
@@ -414,6 +478,9 @@ export async function materialize(
       return materializeVideoIdeas(db, job, result);
     case "learn_style":
       return materializeStyleProposal(db, job, result);
+    case "repo_posts":
+      return materializeRepoPosts(db, job, result);
+    // pick_folder: its result ({ path } or { cancelled }) stays on the job, which the page reads.
     default:
       return { ok: true };
   }

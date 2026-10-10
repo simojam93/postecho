@@ -76,6 +76,34 @@ async function keepVideoPost(idea: typeof ideas.$inferSelect): Promise<void> {
 }
 
 /**
+ * A post from a repo (2026-10-10, materialize.ts's materializeRepoPosts): like a video's ready
+ * post, it becomes the post's chosen version as it is, without a job, in its format's columns: an
+ * X post in xText, a LinkedIn post in linkedinText, an X article in articleTitle and articleText.
+ * Once: a second Use finds the post already in Write.
+ */
+async function keepRepoPost(idea: typeof ideas.$inferSelect): Promise<void> {
+  const [inWrite] = await db.select({ id: drafts.id }).from(drafts)
+    .where(and(eq(drafts.ideaId, idea.id), inArray(drafts.status, ["kept", "candidate"]))).limit(1);
+  if (!inWrite) {
+    const text = idea.content ?? "";
+    const format = idea.meta.format;
+    const title = typeof idea.meta.title === "string" ? idea.meta.title : idea.title ?? "";
+    const columns = format === "article"
+      ? { articleTitle: title, articleText: text }
+      : format === "linkedin"
+        ? { linkedinText: text }
+        : { xText: text };
+    await db.insert(drafts).values({
+      ideaId: idea.id,
+      ...columns,
+      status: "kept",
+      meta: { voice: voiceOfIdea(idea), ...(format === "x" ? { overLimit: text.length > 280 } : {}) },
+    });
+  }
+  await db.update(ideas).set({ status: "used" }).where(eq(ideas.id, idea.id));
+}
+
+/**
  * The whole text the agent read for a Videos topic (the cards before the
  * ready posts): its video_ideas job keeps it (result.text, which api/jobs
  * never sends to the page). Null for a topic from before 2026-09-27, whose
@@ -103,6 +131,11 @@ export async function POST(request: Request) {
 
     if (isVideoPost(idea) && idea.content?.trim()) {
       await keepVideoPost(idea);
+      return Response.json({ read: [] }, { status: 201 });
+    }
+
+    if (idea.kind === "repo_post" && idea.content?.trim()) {
+      await keepRepoPost(idea);
       return Response.json({ read: [] }, { status: 201 });
     }
 

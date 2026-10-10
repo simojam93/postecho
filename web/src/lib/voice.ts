@@ -25,5 +25,6 @@ export function voiceOfIdea(
 ): Voice {
   if (idea && isVoice(idea.meta.voice)) return idea.meta.voice;
   if (isVoice(fallback)) return fallback;
-  return idea?.kind === "note" || isVideoPost(idea) ? "mine" : "reaction";
+  // A post from a repo (2026-10-10) is written from the owner's own code: theirs too.
+  return idea?.kind === "note" || idea?.kind === "repo_post" || isVideoPost(idea) ? "mine" : "reaction";
 }

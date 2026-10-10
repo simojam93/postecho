@@ -9,6 +9,8 @@ describe("voiceOfIdea", () => {
     // A video's ready post is written as the owner's own idea (2026-09-27); a topic from before is a reaction.
     expect(voiceOfIdea({ kind: "video_idea", meta: { format: "post" } })).toBe("mine");
     expect(voiceOfIdea({ kind: "video_idea", meta: {} })).toBe("reaction");
+    // A post from the owner's own repo is theirs (2026-10-10).
+    expect(voiceOfIdea({ kind: "repo_post", meta: { format: "x" } })).toBe("mine");
   });
 
   it("a voice chosen on the idea wins, then the version's", () => {
