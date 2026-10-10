@@ -8,6 +8,8 @@ import { DayList } from "./day-list";
 import { DayNav, MonthGrid } from "./month-grid";
 import { PostingTimes } from "./posting-times";
 import { RateList } from "./rate-list";
+import { ReadyList, type ReadyPost } from "./ready-list";
+import { proposeTimes, type TakenSlot } from "@/lib/schedule-queue";
 import {
   dayKeyOf, dayRows, displayStatus, gridRangeUtc, groupByDay, inMonth, monthLabel, monthMatrix, monthOf,
   PLATFORM_LABEL, sameMonth, shiftDay, statusSummary, summaryLabel,
@@ -21,6 +23,11 @@ const pillCls = "rounded-full border border-border px-3 py-1 text-xs font-medium
 /** One fetched grid: the month it was fetched for, the Rome day and the instant it was fetched at, and the rows. */
 type Loaded = { month: MonthKey; today: DayKey; now: string; posts: PlanPost[] };
 type Busy = { id: string; action: PlanAction };
+/** How far ahead the scheduled posts are read for the ready posts' times (lib/schedule-queue.ts searches 28 days). */
+const QUEUE_DAYS_MS = 29 * 24 * 60 * 60 * 1000;
+/** The ready posts, the posts already scheduled from now on (the slots they take), and when that was read. */
+type Ready = { posts: ReadyPost[]; taken: TakenSlot[]; now: string };
+
 /** What sits beside the grid: the selected day's list, or the posts to rate. */
 type View = "days" | "rate";
 
@@ -109,6 +116,11 @@ export function PlanView({ initialDay }: { initialDay?: DayKey } = {}) {
   const [toRate, setToRate] = useState<PlanPost[]>([]);
   // The post whose vote is being saved.
   const [rating, setRating] = useState<string | null>(null);
+  // Ready to schedule (schedule in a row, 2026-10-10): the list, and the times the owner changed (by draft id).
+  const [ready, setReady] = useState<Ready>({ posts: [], taken: [], now: "" });
+  const [changedTimes, setChangedTimes] = useState<Record<string, string>>({});
+  // Schedule all's sequence is open.
+  const [schedulingAll, setSchedulingAll] = useState(false);
 
   // The grid. Every setState here happens after an await — the accepted
   // pattern for react-hooks/set-state-in-effect (see create/page.tsx).
@@ -172,6 +184,33 @@ export function PlanView({ initialDay }: { initialDay?: DayKey } = {}) {
         if (!cancelled) setToRate(Array.isArray(body?.posts) ? body.posts : []);
       } catch (e) {
         console.error("failed to load the posts to rate:", e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [refreshKey]);
+
+  // The ready posts and what's already scheduled from now on, fetched again with the grid (refreshKey).
+  // Optional: without them the list just doesn't show.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const now = new Date();
+      const to = new Date(now.getTime() + QUEUE_DAYS_MS);
+      try {
+        const [readyRes, takenRes] = await Promise.all([
+          fetch("/api/drafts/ready"),
+          fetch(`/api/scheduled-posts?from=${encodeURIComponent(now.toISOString())}&to=${encodeURIComponent(to.toISOString())}`),
+        ]);
+        if (!readyRes.ok || !takenRes.ok) return;
+        const [readyBody, takenBody] = await Promise.all([readyRes.json(), takenRes.json()]);
+        if (cancelled) return;
+        setReady({
+          posts: Array.isArray(readyBody?.posts) ? readyBody.posts : [],
+          taken: Array.isArray(takenBody?.posts) ? takenBody.posts : [],
+          now: now.toISOString(),
+        });
+      } catch (e) {
+        console.error("failed to load the ready posts:", e);
       }
     })();
     return () => { cancelled = true; };
@@ -306,6 +345,13 @@ export function PlanView({ initialDay }: { initialDay?: DayKey } = {}) {
   const summary = summaryLabel(statusSummary(posts.filter((p) => inMonth(p.publishAt, month))));
   const day = selected ?? today;
   const rows = dayRows({ day, posts: postsByDay.get(day) ?? [], defaultSlots, now });
+  const readyTimes = proposeTimes({
+    posts: ready.posts.map((post) => ({ id: post.draftId, platforms: post.platforms })),
+    postingTimes: defaultSlots,
+    taken: ready.taken,
+    now: ready.now || now,
+    overrides: changedTimes,
+  });
 
   return (
     <div className="space-y-6">
@@ -345,6 +391,13 @@ export function PlanView({ initialDay }: { initialDay?: DayKey } = {}) {
         </p>
         {loadError && <p className="text-sm text-danger">{loadError}</p>}
       </header>
+
+      <ReadyList
+        posts={ready.posts}
+        times={readyTimes}
+        onChangeTime={(draftId, at) => setChangedTimes((current) => ({ ...current, [draftId]: at }))}
+        onScheduleAll={() => setSchedulingAll(true)}
+      />
 
       {/* Phone: the grid full width, the day list beneath. From lg up (the
           authed layout leaves ~500px at md — too little for two columns):
