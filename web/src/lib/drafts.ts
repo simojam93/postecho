@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, inArray, isNotNull, isNull, ne } from "drizzle-orm";
 import { drafts, ideas, jobs, scheduledPosts } from "@/db/schema";
+import { mediaOf, type MediaItemKind } from "@/lib/media";
 import { MAX_TAKES } from "@/lib/takes";
 import type { db as Db } from "@/db";
 
@@ -198,12 +199,15 @@ export type ReadyPost = {
   /** The platforms it has text for and isn't scheduled or posted on yet, X first. */
   platforms: Array<"x" | "linkedin">;
   readyAt: Date;
+  /** The media the owner kept for it (media from a repo, 2026-10-11): Schedule all shows them by Open X. */
+  media: Array<{ file: string; kind: MediaItemKind }>;
 };
 
 /**
  * The posts made Ready in Compose and not yet scheduled everywhere, oldest ready first (GET
  * /api/drafts/ready). Each carries only the platforms left: a post scheduled on X and skipped on
- * LinkedIn stays with LinkedIn. Articles never: X has no scheduler an app can open for them.
+ * LinkedIn stays with LinkedIn, and only its kept media. Articles never: X has no scheduler an app
+ * can open for them.
  */
 export async function listReadyPosts(db: typeof Db): Promise<ReadyPost[]> {
   const ready = await db.select().from(drafts)
@@ -224,6 +228,7 @@ export async function listReadyPosts(db: typeof Db): Promise<ReadyPost[]> {
         Boolean((platform === "x" ? d.xText : d.linkedinText)?.trim())
         && !recorded.some((row) => row.draftId === d.id && row.platform === platform)),
       readyAt: d.readyAt as Date,
+      media: mediaOf(d.meta).filter((item) => item.kept).map(({ file, kind }) => ({ file, kind })),
     }))
     .filter((post) => post.platforms.length > 0);
 }

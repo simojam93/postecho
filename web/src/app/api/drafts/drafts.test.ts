@@ -579,9 +579,22 @@ describe("ready to schedule (schedule in a row, 2026-10-10)", () => {
     expect(res.status).toBe(200);
     const { posts } = await res.json();
     expect(posts).toEqual([
-      { draftId: first.id, ideaId: null, xText: "First", linkedinText: null, platforms: ["x"], readyAt: "2026-10-10T09:00:00.000Z" },
-      { draftId: second.id, ideaId: idea.id, xText: "Second", linkedinText: "Second on LinkedIn", platforms: ["linkedin"], readyAt: "2026-10-10T10:00:00.000Z" },
+      { draftId: first.id, ideaId: null, xText: "First", linkedinText: null, platforms: ["x"], readyAt: "2026-10-10T09:00:00.000Z", media: [] },
+      { draftId: second.id, ideaId: idea.id, xText: "Second", linkedinText: "Second on LinkedIn", platforms: ["linkedin"], readyAt: "2026-10-10T10:00:00.000Z", media: [] },
     ]);
+  });
+
+  it("a ready post carries its kept media, not the others (media from a repo, 2026-10-11)", async () => {
+    await state.db!.insert(drafts).values({
+      xText: "With media", status: "kept", readyAt: new Date(),
+      meta: { media: [
+        { file: "card-a.png", kind: "card", kept: true, jobId: "j" },
+        { file: "image-a-1.png", kind: "image", kept: false, jobId: "j" },
+        { file: "video-a.mp4", kind: "video", kept: true, jobId: "j" },
+      ] },
+    });
+    const { posts } = await (await getReady()).json();
+    expect(posts[0].media).toEqual([{ file: "card-a.png", kind: "card" }, { file: "video-a.mp4", kind: "video" }]);
   });
 
   it("GET /api/drafts/ready 401s when the session is denied", async () => {

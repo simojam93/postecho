@@ -5,6 +5,7 @@ import { queueOrder } from "@/lib/schedule-queue";
 import { fromDatetimeLocal, toDatetimeLocal } from "@/components/write/schedule-format";
 import { platformPillCls } from "./schedule-card";
 import { PLATFORM_TAG, type PlanPlatform } from "./plan-calendar";
+import type { SequenceMedia } from "./schedule-all";
 
 const primaryPillCls = "rounded-full bg-accent px-4 py-2 text-sm font-medium text-accent-ink disabled:opacity-50";
 const timeInputCls = "shrink-0 rounded-lg border border-border bg-surface px-2 py-1 text-xs outline-none focus:border-text-dim";
@@ -18,6 +19,8 @@ export type ReadyPost = {
   /** The platforms still to schedule, X first. */
   platforms: PlanPlatform[];
   readyAt: string;
+  /** The media kept for it (media from a repo, 2026-10-11). */
+  media?: SequenceMedia[];
 };
 
 /** The post's first line: its X text's, else its LinkedIn text's. */

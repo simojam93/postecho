@@ -8,8 +8,9 @@ import { platformPillCls } from "./schedule-card";
 import { dayKeyOf, dayLabel, PLATFORM_LABEL, PLATFORM_TAG, romeTime } from "./plan-calendar";
 import {
   scheduledCount, sequenceDone, sequenceReducer, startSequence,
-  type Recorded, type SequencePost, type SequenceState, type SequenceStep,
+  type Recorded, type SequenceMedia, type SequencePost, type SequenceState, type SequenceStep,
 } from "./schedule-all";
+import { AGENT_PORT, mediaUrl, revealMedia } from "@/lib/media-client";
 
 const X_LIMIT = 280;
 const inputCls = "w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-text-dim";
@@ -123,6 +124,7 @@ function StepView({ titleId, step, posts, progress, now, busy, setBusy, onRecord
           onClick={() => { openComposer(step.platform, step.text); setOpened(true); setError(null); }}>
           {opened ? `Open ${label} again ↗` : `Open ${label} ↗`}
         </button>
+        {step.media.length > 0 && <StepMedia draftId={step.draftId} media={step.media} />}
         <label className="block space-y-1.5">
           <span className="text-xs text-text-dim">The time you picked on {label}</span>
           <input type="datetime-local" value={when} min={toDatetimeLocal(now)} className={inputCls}
@@ -138,6 +140,42 @@ function StepView({ titleId, step, posts, progress, now, busy, setBusy, onRecord
         <button type="button" onClick={onStop} disabled={busy} className={pillCls}>Stop</button>
       </div>
     </>
+  );
+}
+
+/**
+ * The post's kept media (media from a repo, 2026-10-11), next to Open X / Open LinkedIn: neither lets an
+ * app attach a file, so Show in Finder opens it on the owner's computer to drag into the composer.
+ */
+function StepMedia({ draftId, media }: { draftId: string; media: SequenceMedia[] }) {
+  const [unreachable, setUnreachable] = useState(AGENT_PORT === 0);
+  const reveal = async (file: string) => {
+    if (!(await revealMedia(AGENT_PORT, draftId, file))) setUnreachable(true);
+  };
+  return (
+    <div role="group" aria-label="Media for this post" className="space-y-2">
+      <ul className="flex flex-wrap gap-2">
+        {media.map((item) => {
+          const src = mediaUrl(AGENT_PORT, draftId, item.file);
+          return (
+            <li key={item.file} className="w-28 space-y-1">
+              {item.kind === "video" ? (
+                <video src={src} crossOrigin="anonymous" muted playsInline preload="metadata" onError={() => setUnreachable(true)}
+                  className="aspect-video w-full rounded-lg border border-border bg-surface object-cover" />
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element -- a file on the owner's computer, served by the agent.
+                <img src={src} alt="" crossOrigin="anonymous" onError={() => setUnreachable(true)}
+                  className="aspect-video w-full rounded-lg border border-border bg-surface object-cover" />
+              )}
+              <button type="button" onClick={() => void reveal(item.file)} className="text-xs text-text-dim underline hover:text-text">
+                Show in Finder
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      {unreachable && <p className="text-xs text-text-dim">The media are on the computer where the agent runs.</p>}
+    </div>
   );
 }
 

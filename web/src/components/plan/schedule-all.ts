@@ -4,7 +4,11 @@
  * post by post in the list's order; recording a time moves on, Skip leaves the rest of the post, Stop
  * ends it. What was recorded stays recorded whatever comes after.
  */
+import type { MediaItemKind } from "@/lib/media";
 import type { PlanPlatform } from "./plan-calendar";
+
+/** A kept media file of the post (media from a repo, 2026-10-11), on the owner's computer. */
+export type SequenceMedia = { file: string; kind: MediaItemKind };
 
 /** A ready post as the sequence takes it: its texts, the platforms left, and its time in the list. */
 export type SequencePost = {
@@ -14,9 +18,13 @@ export type SequencePost = {
   platforms: PlanPlatform[];
   /** UTC ISO; null when no posting time was free. */
   time: string | null;
+  /** Its kept media, shown by Open X / Open LinkedIn to drag into the composer. */
+  media?: SequenceMedia[];
 };
 
-export type SequenceStep = { post: number; draftId: string; platform: PlanPlatform; text: string; time: string | null };
+export type SequenceStep = {
+  post: number; draftId: string; platform: PlanPlatform; text: string; time: string | null; media: SequenceMedia[];
+};
 export type Recorded = { draftId: string; platform: PlanPlatform; publishAt: string };
 
 export type SequenceState = {
@@ -37,7 +45,7 @@ export function startSequence(posts: SequencePost[]): SequenceState {
   const steps = posts.flatMap((post, index) => ORDER
     .filter((platform) => post.platforms.includes(platform))
     .map((platform) => ({
-      post: index, draftId: post.draftId, platform, time: post.time,
+      post: index, draftId: post.draftId, platform, time: post.time, media: post.media ?? [],
       text: (platform === "x" ? post.xText : post.linkedinText) ?? "",
     })));
   return { steps, posts: posts.length, at: 0, recorded: [], stopped: false };

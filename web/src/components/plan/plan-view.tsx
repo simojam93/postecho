@@ -412,7 +412,9 @@ export function PlanView({ initialDay }: { initialDay?: DayKey } = {}) {
         onChangeTime={(draftId, at) => setChangedTimes((current) => ({ ...current, [draftId]: at }))}
         onScheduleAll={() => setSchedulingAll({
           posts: queueOrder(ready.posts.map((post) => ({ ...post, id: post.draftId })), readyTimes)
-            .map(({ draftId, xText, linkedinText, platforms }) => ({ draftId, xText, linkedinText, platforms, time: readyTimes[draftId] ?? null })),
+            .map(({ draftId, xText, linkedinText, platforms, media }) => ({
+              draftId, xText, linkedinText, platforms, time: readyTimes[draftId] ?? null, media: media ?? [],
+            })),
           now: new Date().toISOString(),
         })}
       />
