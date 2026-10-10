@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  AGENT_OFFLINE_AFTER_MS, agentLooksOffline, chosenOf, formatElapsed, humanizeInstruction, ideaLabel, isInFlight,
+  AGENT_OFFLINE_AFTER_MS, agentLooksOffline, agentOfflineHint, chosenOf, formatElapsed, humanizeInstruction, ideaLabel, isInFlight,
   generationSteps, jobError, looksLikeTranscriptError, nextSlopCheck, persistedSlop, slopCheckTarget, slopFor, slopOf, takeCountOf,
   takesOf, versionChain,
 } from "@/components/write/post-state";
@@ -196,6 +196,18 @@ describe("agentLooksOffline", () => {
     expect(agentLooksOffline(new Date(now - AGENT_OFFLINE_AFTER_MS).toISOString(), now)).toBe(false);
     expect(agentLooksOffline(new Date(now - AGENT_OFFLINE_AFTER_MS - 1000).toISOString(), now)).toBe(true);
     expect(agentLooksOffline("2026-09-23T09:00:00.000Z", now)).toBe(true);
+  });
+});
+
+describe("agentOfflineHint", () => {
+  it("says the job waits for the agent", () => {
+    expect(agentOfflineHint(false)).toBe("Your Mac agent looks offline — the job starts when it comes back.");
+  });
+
+  it("adds where to open PostEcho only when the page couldn't reach the agent", () => {
+    expect(agentOfflineHint(true)).toBe(
+      "Your Mac agent looks offline — the job starts when it comes back. Open PostEcho in Chrome on the computer where the agent runs.",
+    );
   });
 });
 

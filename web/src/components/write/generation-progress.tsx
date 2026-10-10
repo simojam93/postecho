@@ -3,7 +3,8 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { SettingsLink } from "@/components/settings/settings-provider";
 import { WorkProgress, type WorkStep } from "@/components/work-progress";
-import { agentLooksOffline, generationSteps } from "./post-state";
+import { subscribeWakeFailed, wakeFailedNow } from "@/lib/agent-wake";
+import { agentLooksOffline, agentOfflineHint, generationSteps } from "./post-state";
 import type { JobInfo } from "./types";
 
 /** How often the agent heartbeat is re-read while the job sits in the queue. */
@@ -16,6 +17,7 @@ function subscribeEverySecond(onTick: () => void): () => void {
 }
 const nowSeconds = () => Math.floor(Date.now() / 1000);
 const noClockOnServer = () => null;
+const noWakeFailureOnServer = () => false;
 
 /**
  * Progress that doesn't look broken (M3.5 plan, task U2 — owner, first day
@@ -28,7 +30,9 @@ const noClockOnServer = () => null;
  * While the job is still `queued`, GET /api/settings is read on mount and
  * every 30 s: a heartbeat older than 3 minutes (or none at all — see
  * post-state.ts's agentLooksOffline) adds the "Mac agent looks offline" hint
- * with a link to Settings, where the heartbeat age is shown.
+ * with a link to Settings, where the heartbeat age is shown. When the page
+ * couldn't reach the agent, the hint also says to open PostEcho in Chrome on
+ * that computer.
  */
 export function GenerationProgress({ job, phase, steps: ownSteps, typical = "usually 30–60 s" }: {
   job: JobInfo;
@@ -65,6 +69,8 @@ export function GenerationProgress({ job, phase, steps: ownSteps, typical = "usu
     return () => { cancelled = true; clearInterval(timer); };
   }, [queued]);
 
+  // The page's last call to the agent failed (lib/agent-wake.ts): the hint says where to open PostEcho.
+  const wakeFailed = useSyncExternalStore(subscribeWakeFailed, wakeFailedNow, noWakeFailureOnServer);
   const nowMs = nowSec === null ? null : nowSec * 1000;
   const offline = queued && nowMs !== null && agentLooksOffline(heartbeatAt, nowMs);
   const steps = ownSteps ?? (phase !== undefined ? (phase ? [{ label: phase, done: false }] : []) : generationSteps(job));
@@ -73,7 +79,7 @@ export function GenerationProgress({ job, phase, steps: ownSteps, typical = "usu
     <WorkProgress steps={steps} startedAt={job.createdAt} typical={typical} label="Generation progress">
       {offline && (
         <p className="text-xs text-text-dim">
-          Your Mac agent looks offline — the job starts when it comes back.{" "}
+          {agentOfflineHint(wakeFailed)}{" "}
           <SettingsLink tab="agent" className="underline hover:text-text">Settings</SettingsLink>
         </p>
       )}

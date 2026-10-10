@@ -154,7 +154,7 @@ export function generationSteps(job: Pick<JobInfo, "kind" | "status" | "payload"
   return steps;
 }
 
-/** The agent heartbeats every 60 s (agent/src/main.ts) — three missed ones and it's presumed off. */
+/** The agent heartbeats every 2 minutes while awake (agent/src/wake.ts), every 60 s when polling: past 3 minutes it's presumed off. */
 export const AGENT_OFFLINE_AFTER_MS = 3 * 60_000;
 
 /**
@@ -166,6 +166,16 @@ export function agentLooksOffline(heartbeatAt: string | null | undefined, nowMs:
   if (heartbeatAt === undefined) return false;
   if (heartbeatAt === null) return true;
   return nowMs - time(heartbeatAt) > AGENT_OFFLINE_AFTER_MS;
+}
+
+/**
+ * The "looks offline" line. When the page's last call to the agent on this
+ * computer failed (lib/agent-wake.ts), it also says where PostEcho can reach
+ * it: Safari blocks an https page from calling the computer, Chrome asks once.
+ */
+export function agentOfflineHint(wakeFailed: boolean): string {
+  const hint = "Your Mac agent looks offline — the job starts when it comes back.";
+  return wakeFailed ? `${hint} Open PostEcho in Chrome on the computer where the agent runs.` : hint;
 }
 
 // ---------------------------------------------------------------------------
