@@ -9,7 +9,9 @@ import { DayNav, MonthGrid } from "./month-grid";
 import { PostingTimes } from "./posting-times";
 import { RateList } from "./rate-list";
 import { ReadyList, type ReadyPost } from "./ready-list";
-import { proposeTimes, type TakenSlot } from "@/lib/schedule-queue";
+import { ScheduleAllDialog } from "./schedule-all-dialog";
+import type { Recorded, SequencePost } from "./schedule-all";
+import { proposeTimes, queueOrder, type TakenSlot } from "@/lib/schedule-queue";
 import {
   dayKeyOf, dayRows, displayStatus, gridRangeUtc, groupByDay, inMonth, monthLabel, monthMatrix, monthOf,
   PLATFORM_LABEL, sameMonth, shiftDay, statusSummary, summaryLabel,
@@ -119,8 +121,8 @@ export function PlanView({ initialDay }: { initialDay?: DayKey } = {}) {
   // Ready to schedule (schedule in a row, 2026-10-10): the list, and the times the owner changed (by draft id).
   const [ready, setReady] = useState<Ready>({ posts: [], taken: [], now: "" });
   const [changedTimes, setChangedTimes] = useState<Record<string, string>>({});
-  // Schedule all's sequence is open.
-  const [schedulingAll, setSchedulingAll] = useState(false);
+  // Schedule all's sequence, while open: the ready posts in the list's order with their times, fixed when it opened.
+  const [schedulingAll, setSchedulingAll] = useState<{ posts: SequencePost[]; now: string } | null>(null);
 
   // The grid. Every setState here happens after an await — the accepted
   // pattern for react-hooks/set-state-in-effect (see create/page.tsx).
@@ -215,6 +217,18 @@ export function PlanView({ initialDay }: { initialDay?: DayKey } = {}) {
     })();
     return () => { cancelled = true; };
   }, [refreshKey]);
+
+  /**
+   * Schedule all ended: the list and the calendar are read again, and the calendar shows the day of the
+   * first post it scheduled. Times changed for posts now scheduled are forgotten.
+   */
+  function closeScheduleAll(recorded: Recorded[]) {
+    setSchedulingAll(null);
+    setChangedTimes((current) => Object.fromEntries(Object.entries(current).filter(([id]) => !recorded.some((r) => r.draftId === id))));
+    setRefreshKey((k) => k + 1);
+    const first = [...recorded].sort((a, b) => a.publishAt.localeCompare(b.publishAt))[0];
+    if (first) jumpTo(dayKeyOf(new Date(first.publishAt)));
+  }
 
   /** Shows `day`'s list, the grid following it into its month. */
   function jumpTo(day: DayKey) {
@@ -396,8 +410,13 @@ export function PlanView({ initialDay }: { initialDay?: DayKey } = {}) {
         posts={ready.posts}
         times={readyTimes}
         onChangeTime={(draftId, at) => setChangedTimes((current) => ({ ...current, [draftId]: at }))}
-        onScheduleAll={() => setSchedulingAll(true)}
+        onScheduleAll={() => setSchedulingAll({
+          posts: queueOrder(ready.posts.map((post) => ({ ...post, id: post.draftId })), readyTimes)
+            .map(({ draftId, xText, linkedinText, platforms }) => ({ draftId, xText, linkedinText, platforms, time: readyTimes[draftId] ?? null })),
+          now: new Date().toISOString(),
+        })}
       />
+      {schedulingAll && <ScheduleAllDialog posts={schedulingAll.posts} now={schedulingAll.now} onClose={closeScheduleAll} />}
 
       {/* Phone: the grid full width, the day list beneath. From lg up (the
           authed layout leaves ~500px at md — too little for two columns):
