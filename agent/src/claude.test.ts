@@ -181,6 +181,29 @@ describe("createClaudeRunner", () => {
     expect(spawnImpl).toHaveBeenCalledTimes(1);
   });
 
+  it("says Claude Code isn't installed when the CLI can't be found, without retrying", async () => {
+    const missing = Object.assign(new Error("spawn claude ENOENT"), { code: "ENOENT" });
+    const spawnImpl = vi.fn(() => fakeChild({ emitSpawnError: missing }) as never);
+    const runner = createClaudeRunner({ claudeBin: "claude", model: "sonnet", timeoutMs: 5000, spawnImpl });
+    const run = runner.runClaudeJson({ prompt: "p", system: "s", schema: {}, parse: (x) => x });
+    await expect(run).rejects.toThrow(ClaudeRunError);
+    await expect(run).rejects.toThrow(/Claude Code isn't installed/);
+    expect(spawnImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("says to log in when Claude Code reports it isn't authenticated", async () => {
+    const spawnImpl = vi.fn(() =>
+      fakeChild({
+        stdoutChunks: [JSON.stringify({ type: "result", subtype: "success", is_error: true, result: "Invalid API key · Please run /login" })],
+        exitCode: 1,
+      }) as never,
+    );
+    const runner = createClaudeRunner({ claudeBin: "claude", model: "sonnet", timeoutMs: 5000, spawnImpl });
+    await expect(
+      runner.runClaudeJson({ prompt: "p", system: "s", schema: {}, parse: (x) => x }),
+    ).rejects.toThrow(/isn't logged in/);
+  });
+
   it("retries once with a reminder appended to the system prompt when the result isn't valid JSON, then succeeds", async () => {
     const systemsSeen: string[] = [];
     const spawnImpl = vi.fn((_bin: string, args: readonly string[]) => {

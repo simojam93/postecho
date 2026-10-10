@@ -113,6 +113,12 @@ export class ClaudeRunError extends Error {
 }
 
 /** The envelope (or its `result` string, or the caller's schema) didn't parse. Eligible for exactly one retry with a sharper system-prompt reminder. */
+/** What the owner reads in the app when Claude Code itself is the problem, with the fix. */
+export const NOT_INSTALLED =
+  "Claude Code isn't installed, or isn't on the PATH of the agent. Install it, run claude once to log in, then restart npm run dev.";
+export const NOT_LOGGED_IN = "Claude Code isn't logged in on this computer. Run claude, then /login, and try again.";
+const LOGGED_OUT = /\/login|not logged in|invalid api key|failed to authenticate|oauth token/i;
+
 export class ClaudeParseError extends Error {
   constructor(message: string, cause?: unknown) {
     super(message, cause !== undefined ? { cause } : undefined);
@@ -206,11 +212,11 @@ function spawnClaude(
       stderr += chunk.toString("utf8");
     });
 
-    child.on("error", (err) => {
+    child.on("error", (err: NodeJS.ErrnoException) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      reject(err);
+      reject(err.code === "ENOENT" ? new ClaudeRunError(NOT_INSTALLED) : err);
     });
 
     child.on("close", (code) => {
@@ -266,6 +272,7 @@ export function createClaudeRunner(deps: ClaudeRunnerDeps) {
     }
 
     if (envelope.is_error) {
+      if (LOGGED_OUT.test(envelope.result ?? "")) throw new ClaudeRunError(NOT_LOGGED_IN);
       throw new ClaudeRunError(envelope.result || `claude -p reported an error (exit ${code})`);
     }
 

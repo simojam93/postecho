@@ -74,7 +74,7 @@ npm run demo    # optional: adds fictional sample data
 npm run dev     # starts the web app and local agent
 ```
 
-Open http://localhost:3000 and log in with the password chosen or generated during setup.
+Open the address `npm run dev` prints, http://localhost:3000 unless another program already uses that port, and log in with the password chosen or generated during setup.
 With sample data loaded, open Write to inspect the example drafts. Generating new text requires Claude Code.
 
 For a first live task, add writing examples in Settings, search a topic in Find Ideas, and use a result
