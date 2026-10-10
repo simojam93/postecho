@@ -1,7 +1,7 @@
 # postecho-agent
 
-A small TypeScript CLI daemon that runs on the owner's Mac. It long-polls
-`postecho-web` for jobs and executes them locally via **Claude Code headless**
+A small TypeScript CLI daemon that runs on the owner's Mac. It takes jobs from
+`postecho-web` and executes them locally via **Claude Code headless**
 (`claude -p`, the owner's Claude subscription — no API key, no per-token
 cost). See `docs/plans/2026-09-21-m2-agent-generation.md` (Part B)
 and spec §2.2 for the full design.
@@ -31,7 +31,18 @@ Edit `.env`:
   match the web app's own `AGENT_TOKEN`, since that's what authenticates every
   request this agent makes).
 - `CLAUDE_BIN` / `CLAUDE_MODEL` — usually fine as-is (`claude`, `sonnet`).
-- `POLL_WAIT_SECONDS` / `POLL_IDLE_SECONDS` / `CLAUDE_TIMEOUT_MS` — tuning knobs, defaults are sane. By default the agent asks for a job every 5 seconds and each request returns at once, so a hosted web app isn't kept running while it waits. Opus gets twice the Claude time, a whole-video read twice again, and no job runs past 9 minutes.
+- `AGENT_WAKE_PORT` — the port on `127.0.0.1` where the PostEcho page wakes the agent (default `47321`).
+  The agent sends nothing until the page asks, so it makes no requests while PostEcho is closed. `0` turns
+  this off and the agent polls instead. A port that's taken does the same, with a line in the log.
+- `AGENT_AWAKE_MINUTES` — how long the agent stays awake after the page's last request (default 10). While
+  awake and idle it only sends a heartbeat every 2 minutes.
+- `AGENT_IDLE_CHECK_MINUTES` — how often the asleep agent asks for jobs anyway (default 0, never). Set it if
+  you make jobs from a phone while this computer sits at home.
+- `POLL_WAIT_SECONDS` / `POLL_IDLE_SECONDS` — for polling only. The agent then asks for a job every 5 seconds and each request returns at once, so a hosted web app isn't kept running while it waits.
+- `CLAUDE_TIMEOUT_MS` — Opus gets twice the Claude time, a whole-video read twice again, and no job runs past 9 minutes.
+
+The page reaches the agent from the browser. Chrome asks once for permission to reach devices on your local
+network. Safari blocks it on a hosted app, so use Chrome there.
 
 Requires Node 22.9 or newer and a logged-in Claude Code CLI on this Mac. Two ways to
 authenticate the headless `claude -p` calls:
@@ -52,7 +63,7 @@ works headless right now. Note the CLI uses whatever account it is logged into
 
 ```bash
 npm run doctor   # sanity-checks the Claude CLI headless path (see below)
-npm run dev      # starts the long-poll loop (Ctrl-C to stop, graceful)
+npm run dev      # starts the agent (Ctrl-C to stop, graceful)
 npm test         # vitest
 npm run lint     # tsc --noEmit
 ```
@@ -103,6 +114,6 @@ design goal.
   proxy/IP/cookie workaround.
 - **Never logs prompt or transcript contents** — only sizes and durations, so
   logs are safe to keep around for debugging timeouts.
-- Single job concurrency, heartbeat every 60s, fresh profile fetch per job (so
-  a tone-of-voice edit takes effect on the very next job, not the next
-  restart).
+- Single job concurrency and a fresh profile fetch per job (so a tone-of-voice
+  edit takes effect on the very next job, not the next restart). The heartbeat
+  is every 2 minutes while awake, or every 60 seconds when polling.
