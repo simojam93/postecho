@@ -17,6 +17,9 @@ export type Draft = {
   ideaId: string | null;
   xText: string | null;
   linkedinText: string | null;
+  /** An X article's title and body (posts from a repo, 2026-10-10); null on X and LinkedIn posts. */
+  articleTitle?: string | null;
+  articleText?: string | null;
   status: DraftStatus;
   favorite: boolean;
   parentId: string | null;
@@ -52,6 +55,8 @@ export type SourceIdea = {
   meta: {
     thumbnailUrl?: string | null; topic?: string; sourceName?: string; voice?: string;
     format?: string; videoTitle?: string | null; articleUrl?: string;
+    // A post from a repo (2026-10-10): the repository it was written from.
+    repoName?: string;
   };
 };
 

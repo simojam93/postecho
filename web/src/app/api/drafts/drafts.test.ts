@@ -125,6 +125,23 @@ describe("PATCH /api/drafts/:id", () => {
     });
   });
 
+  it("saves an article's title and body (posts from a repo, 2026-10-10)", async () => {
+    const [draft] = await state.db!.insert(drafts).values({ articleTitle: "Old", articleText: "Old body" }).returning();
+    const res = await PATCH(
+      jsonReq("http://test/api/drafts/x", "PATCH", { articleTitle: "What we shipped", articleText: "A long body" }),
+      { params: Promise.resolve({ id: draft.id }) },
+    );
+    expect(res.status).toBe(200);
+    expect((await res.json()).draft).toMatchObject({ articleTitle: "What we shipped", articleText: "A long body" });
+  });
+
+  it("400s for an article title over 100 characters or a body over 12,000", async () => {
+    const [draft] = await state.db!.insert(drafts).values({ articleTitle: "T", articleText: "B" }).returning();
+    const params = { params: Promise.resolve({ id: draft.id }) };
+    expect((await PATCH(jsonReq("http://test/api/drafts/x", "PATCH", { articleTitle: "a".repeat(101) }), params)).status).toBe(400);
+    expect((await PATCH(jsonReq("http://test/api/drafts/x", "PATCH", { articleText: "a".repeat(12001) }), params)).status).toBe(400);
+  });
+
   it("404s for a non-uuid id", async () => {
     const res = await PATCH(
       jsonReq("http://test/api/drafts/x", "PATCH", { status: "kept" }),

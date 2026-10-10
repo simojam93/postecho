@@ -10,6 +10,7 @@ import { NewPostComposer } from "@/components/write/new-post-composer";
 import { SourceCard } from "@/components/write/source-card";
 import { TakesRow } from "@/components/write/takes-row";
 import { PostEditor, YOUR_POST_ID } from "@/components/write/post-editor";
+import { ArticleEditor, isArticle } from "@/components/write/article-editor";
 import { chosenOf, ideaLabel, isInFlight, takesOf, versionChain } from "@/components/write/post-state";
 import { useSlopQueue } from "@/components/write/use-slop-queue";
 import type { Draft, Identity, JobInfo, Platform, PostInProgress, SourceIdea } from "@/components/write/types";
@@ -414,8 +415,8 @@ function WriteContent() {
       {loadError && <p className="text-sm text-danger">{loadError}</p>}
       {actionError && <p className="text-sm text-danger">{actionError}</p>}
 
-      {/* A video's ready post has no takes: it's the chosen version from the start (lib/video-post.ts). */}
-      {post && (idea || takes.length > 0) && !isVideoPost(idea) && (
+      {/* A video's ready post has no takes: it's the chosen version from the start (lib/video-post.ts). So has a repo's. */}
+      {post && (idea || takes.length > 0) && !isVideoPost(idea) && idea?.kind !== "repo_post" && (
         <TakesRow
           takes={takes}
           chosenId={chosen?.id ?? null}
@@ -432,7 +433,9 @@ function WriteContent() {
         />
       )}
 
-      {post && chosen && (
+      {/* An X article (posts from a repo, 2026-10-10): a title and a body, copied into X Articles. */}
+      {post && chosen && isArticle(chosen) && <ArticleEditor key={chosen.id} draft={chosen} onMutated={reload} />}
+      {post && chosen && !isArticle(chosen) && (
         <PostEditor
           key={chosen.id}
           draft={chosen}

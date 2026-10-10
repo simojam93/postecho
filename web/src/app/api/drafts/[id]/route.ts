@@ -7,6 +7,9 @@ import { requireSession } from "@/lib/session";
 const Body = z.object({
   xText: z.string().max(400).optional(),
   linkedinText: z.string().max(4000).optional(),
+  // An X article (posts from a repo, 2026-10-10): its title and body, the agent's limits.
+  articleTitle: z.string().max(100).optional(),
+  articleText: z.string().max(12000).optional(),
   status: z.enum(["candidate", "kept", "used", "discarded"]).optional(),
   favorite: z.boolean().optional(),
 }).strict().refine((b) => Object.keys(b).length > 0, { message: "at least one field is required" });
@@ -14,7 +17,8 @@ const Body = z.object({
 /**
  * PATCH /api/drafts/:id
  *
- * Edits a draft in place — text edits (autosave on blur), status changes
+ * Edits a draft in place — text edits (autosave on blur; an article's title
+ * and body too), status changes
  * (Keep/Discard/mark used), and the ♥ favorite toggle, all in one endpoint
  * since the Create tab editor (M2 plan Task A8) fires all of these from the
  * same screen. At least one field is required: an empty `{}` body would

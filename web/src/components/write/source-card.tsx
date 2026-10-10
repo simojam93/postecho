@@ -37,8 +37,10 @@ export function SourceCard({ idea, onRemove, removeBusy = false }: {
 }) {
   const pill = sourceLabel(idea.meta.sourceName ?? idea.kind).tag;
   const videoPost = isVideoPost(idea);
-  const title = videoPost ? idea.meta.videoTitle ?? null : idea.title;
-  const content = videoPost ? null : idea.content;
+  // A post from a repo (2026-10-10) is the post below: the card names its repository only.
+  const repoPost = idea.kind === "repo_post";
+  const title = videoPost ? idea.meta.videoTitle ?? null : repoPost ? null : idea.title;
+  const content = videoPost || repoPost ? null : idea.content;
   const url = videoPost ? idea.meta.articleUrl ?? null : idea.url;
 
   return (
@@ -48,7 +50,7 @@ export function SourceCard({ idea, onRemove, removeBusy = false }: {
           {pill}
         </span>
         {/* A manual note is the owner's own text (Write's + New), not someone else's post. */}
-        <span className="min-w-0 truncate">{idea.kind === "note" ? "Your text" : idea.author ?? idea.kind}</span>
+        <span className="min-w-0 truncate">{idea.kind === "note" ? "Your text" : repoPost ? idea.meta.repoName ?? "Your repository" : idea.author ?? idea.kind}</span>
         {onRemove && (
           <button
             type="button"
