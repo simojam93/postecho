@@ -326,6 +326,16 @@ describe("repoPostsPrompt (posts from a repo, 2026-10-10)", () => {
     expect(p).toMatch(/exactly 3 /);
   });
 
+  it("lists what's already written from the repo and asks for new angles (owner, 2026-10-10)", async () => {
+    const { repoPostsPrompt } = await import("./prompts.js");
+    const p = repoPostsPrompt({ repoName: "postecho", brief: "", format: "x", count: 2, previous: ["We split the judge out.", "Tier gating shipped."] });
+    expect(p).toMatch(/Already written from this repository/);
+    expect(p).toContain("- We split the judge out.");
+    expect(p).toContain("- Tier gating shipped.");
+    expect(p).toMatch(/don't repeat/i);
+    expect(repoPostsPrompt({ repoName: "postecho", brief: "", format: "x", count: 2 })).not.toMatch(/Already written/);
+  });
+
   it("with no brief, asks for the most interesting recent work", async () => {
     const { repoPostsPrompt } = await import("./prompts.js");
     const p = repoPostsPrompt({ repoName: "a/b", brief: "  ", format: "x", count: 2 });

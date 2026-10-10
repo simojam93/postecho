@@ -89,7 +89,7 @@ export function createWorker(opts: WorkerOptions) {
     const long = LONG_READS.has(job.kind);
     const outcome = await run(job, {
       ...deps,
-      runClaudeJson: (o) => runner.runClaudeJson({ ...o, long, deadline }),
+      runClaudeJson: (o) => runner.runClaudeJson({ ...o, long: long || o.long === true, deadline }),
       reportProgress: (progress) => client.reportProgress(claimed.id, claimed.claimedAt, progress),
     });
     const elapsedMs = Date.now() - startedAt;

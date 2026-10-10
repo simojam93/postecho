@@ -61,6 +61,27 @@ describe("POST /api/repos", () => {
     expect(await state.db!.select().from(jobs)).toHaveLength(2);
   });
 
+  it("sends the posts already written from this source in the same format, newest first, so a new ask finds other angles", async () => {
+    await post({ source: { type: "github", url: "https://github.com/a/b" }, format: "article" });
+    const [repo] = await state.db!.select().from(ideas);
+    const at = (minutes: number) => new Date(Date.UTC(2026, 9, 10, 12, minutes));
+    await state.db!.insert(ideas).values([
+      { kind: "repo_post", source: "manual", title: "Older one", content: "Older post.", status: "used", createdAt: at(1), meta: { repoId: repo.id, format: "article", title: "Older one" } },
+      { kind: "repo_post", source: "manual", content: "An X post on the same point.", status: "new", createdAt: at(5), meta: { repoId: repo.id, format: "x" } },
+      { kind: "repo_post", source: "manual", title: "How it works", content: "A".repeat(500), status: "new", createdAt: at(2), meta: { repoId: repo.id, format: "article", title: "How it works" } },
+      { kind: "repo_post", source: "manual", title: "Archived", content: "Archived one.", status: "archived", createdAt: at(3), meta: { repoId: repo.id, format: "article" } },
+      { kind: "repo_post", source: "manual", title: "Other", content: "Another repo.", status: "new", createdAt: at(4), meta: { repoId: "00000000-0000-4000-8000-000000000001", format: "article" } },
+    ]);
+    await post({ source: { type: "github", url: "https://github.com/a/b" }, format: "article" });
+    const rows = await state.db!.select().from(jobs);
+    const latest = rows.find((j) => Array.isArray((j.payload as { previous?: unknown }).previous));
+    const previous = (latest!.payload as { previous: string[] }).previous;
+    expect(previous).toHaveLength(2);
+    expect(previous[0]).toMatch(/^How it works: A+$/);
+    expect(previous[0]!.length).toBeLessThanOrEqual(400);
+    expect(previous[1]).toBe("Older one: Older post.");
+  });
+
   it("a GitHub repo the scout found before becomes the repo source", async () => {
     await state.db!.insert(ideas).values({ kind: "github", source: "scout", url: "https://github.com/a/b", title: "a/b: a thing" });
     const res = await post({ source: { type: "github", url: "https://github.com/a/b" }, format: "x" });

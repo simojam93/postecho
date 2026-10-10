@@ -53,6 +53,8 @@ export type RunClaudeJsonFn = <T>(opts: {
   /** Posts from a repo: Claude Code runs in this directory with read tools only (claude.ts). */
   cwd?: string;
   readOnlyTools?: boolean;
+  /** A long read, like a whole repository: twice the time, whatever the job's kind. */
+  long?: boolean;
 }) => Promise<T>;
 
 export type FetchTranscriptFn = (
@@ -158,6 +160,12 @@ const ReviseDraftPayload = z
     voice: z.enum(["mine", "reaction"]).nullish(),
     sourceText: NullishText,
     history: z.array(z.string()).max(20).nullish(),
+    // A post from a repo (2026-10-10): the repository it came from. Moving it to the other platform
+    // reads the whole repository again, the way a video's LinkedIn version had its whole transcript.
+    repo: z.discriminatedUnion("type", [
+      z.object({ type: z.literal("folder"), path: z.string().trim().min(1) }),
+      z.object({ type: z.literal("github"), url: z.string().trim().min(1) }),
+    ]).nullish(),
   })
   .refine((p) => Boolean(p.xText || p.linkedinText), {
     message: "revise_draft needs an xText and/or a linkedinText to revise",
@@ -421,18 +429,25 @@ export async function handleReviseDraft(
     };
   }
   if (p.mode) {
+    let editDeps = deps;
+    let sourceText = p.sourceText ?? undefined;
+    if (p.repo && (p.mode === "sync_linkedin" || p.mode === "sync_x") && deps.resolveRepo) {
+      const repo = await deps.resolveRepo(p.repo);
+      editDeps = { ...deps, runClaudeJson: (o) => deps.runClaudeJson({ ...o, cwd: repo.dir, readOnlyTools: true, long: true }) };
+      sourceText = `The post came from the repository "${repo.name}", your working directory. Read it with Read, Glob and Grep for the detail the other version has no room for: what it does, the decisions behind it, the details in the code. Never invent what the repository doesn't show.`;
+    }
     return handleEdit(
       {
         mode: p.mode,
         xText: p.xText ?? undefined,
         linkedinText: p.linkedinText ?? undefined,
-        sourceText: p.sourceText ?? undefined,
+        sourceText,
         voice: p.voice ?? "reaction",
         history: p.history ?? [],
         instruction: p.instruction,
       },
       systemPrompt(profile),
-      deps,
+      editDeps,
       profile,
     );
   }
@@ -656,6 +671,8 @@ const RepoPostsPayload = z.object({
   brief: z.string().max(2000).nullish(),
   format: z.enum(["x", "linkedin", "article"]),
   count: z.number().int().min(1).max(6),
+  // Posts already written from this source (web's api/repos), so this ask finds other angles.
+  previous: z.array(z.string().max(1000)).max(30).nullish(),
 });
 
 async function reportRepoPosts(deps: HandlerDeps, phase: "fetching" | "reading" | "writing"): Promise<void> {
@@ -683,7 +700,7 @@ export async function handleRepoPosts(
   await reportRepoPosts(deps, "reading");
   await reportRepoPosts(deps, "writing");
   const { posts } = await deps.runClaudeJson({
-    prompt: repoPostsPrompt({ repoName: repo.name, brief: p.brief ?? "", format: p.format, count: p.count }),
+    prompt: repoPostsPrompt({ repoName: repo.name, brief: p.brief ?? "", format: p.format, count: p.count, previous: p.previous ?? undefined }),
     system: systemPrompt(profile),
     schema: REPO_SCHEMAS[p.format],
     parse: parseRepoPosts(p.format),

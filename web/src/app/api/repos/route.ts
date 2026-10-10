@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { and, desc, eq, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { ideas, jobs } from "@/db/schema";
@@ -22,6 +22,27 @@ const Body = z.object({
   format: z.enum(["x", "linkedin", "article"]),
   count: z.number().int().min(1).max(REPO_POSTS_MAX).default(REPO_POSTS_DEFAULT),
 }).strict();
+
+/** How many earlier posts go with a new ask, and how much of each: enough for Claude to steer clear of them. */
+const PREVIOUS_POSTS = 20;
+const PREVIOUS_CHARS = 400;
+
+/**
+ * The posts already written from this source in this format, newest first, one line each (an article as
+ * "Title: body"). Only the same format: a LinkedIn post on the point an X post made is a new post, not a repeat.
+ */
+async function previousPosts(repoId: string, format: string): Promise<string[]> {
+  const rows = await db.select({ title: ideas.title, content: ideas.content }).from(ideas)
+    .where(and(
+      eq(ideas.kind, "repo_post"),
+      ne(ideas.status, "archived"),
+      sql`${ideas.meta}->>'repoId' = ${repoId}`,
+      sql`${ideas.meta}->>'format' = ${format}`,
+    ))
+    .orderBy(desc(ideas.createdAt)).limit(PREVIOUS_POSTS);
+  return rows.map((row) => (row.title ? `${row.title}: ${row.content ?? ""}` : row.content ?? "").slice(0, PREVIOUS_CHARS).trim())
+    .filter(Boolean);
+}
 
 const bad = (error: string) => Response.json({ error }, { status: 400 });
 
@@ -76,9 +97,11 @@ export async function POST(request: Request) {
         .where(eq(ideas.id, existing.id)).returning();
     }
 
+    const previous = await previousPosts(repo.id, format);
     const [job] = await db.insert(jobs).values({
       kind: "repo_posts",
-      payload: { ideaId: repo.id, source, brief: brief.trim(), format, count },
+      // The posts already written from it in this format, so this ask finds other angles (owner, 2026-10-10).
+      payload: { ideaId: repo.id, source, brief: brief.trim(), format, count, ...(previous.length ? { previous } : {}) },
     }).returning();
     return jobCreated({ ideaId: repo.id, jobId: job.id }, job.id);
   } catch (err) {

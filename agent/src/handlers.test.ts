@@ -67,7 +67,7 @@ function makeJob(overrides: Partial<Job> = {}): Job {
  * can't be typed with a non-generic dependency here).
  */
 function fakeRunClaudeJson(fixture: unknown) {
-  const calls: Array<{ prompt: string; system: string; schema: object; cwd?: string; readOnlyTools?: boolean }> = [];
+  const calls: Array<{ prompt: string; system: string; schema: object; cwd?: string; readOnlyTools?: boolean; long?: boolean }> = [];
   async function fn<T>(opts: {
     prompt: string;
     system: string;
@@ -75,6 +75,7 @@ function fakeRunClaudeJson(fixture: unknown) {
     parse: (value: unknown) => T;
     cwd?: string;
     readOnlyTools?: boolean;
+    long?: boolean;
   }): Promise<T> {
     calls.push({
       prompt: opts.prompt,
@@ -82,6 +83,7 @@ function fakeRunClaudeJson(fixture: unknown) {
       schema: opts.schema,
       ...(opts.cwd !== undefined ? { cwd: opts.cwd } : {}),
       ...(opts.readOnlyTools !== undefined ? { readOnlyTools: opts.readOnlyTools } : {}),
+      ...(opts.long !== undefined ? { long: opts.long } : {}),
     });
     return opts.parse(fixture);
   }
@@ -323,6 +325,33 @@ describe("handleReviseDraft", () => {
     expect(calls[0]?.schema).toBe(REVISE_SCHEMA);
     expect(calls[0]?.prompt).toContain("old text");
     expect(calls[0]?.prompt).toContain("make it punchier");
+  });
+});
+
+describe("handleReviseDraft — a post from a repo (2026-10-10)", () => {
+  it("writes the LinkedIn version reading the whole repository, not only the X post", async () => {
+    const { fn: runClaudeJson, calls } = fakeRunClaudeJson({ linkedinText: "l".repeat(700) });
+    const resolveRepo = vi.fn(async () => ({ dir: "/repos/a__b", name: "a/b" }));
+    await handleReviseDraft(
+      { draftId: "d1", xText: "the X post", instruction: "Write the LinkedIn version", mode: "sync_linkedin", repo: { type: "github", url: "https://github.com/a/b" } },
+      { getProfile: async () => emptyProfile(), runClaudeJson, resolveRepo },
+    );
+    expect(resolveRepo).toHaveBeenCalledWith({ type: "github", url: "https://github.com/a/b" });
+    expect(calls[0]!.cwd).toBe("/repos/a__b");
+    expect(calls[0]!.readOnlyTools).toBe(true);
+    expect(calls[0]!.long).toBe(true);
+    expect(calls[0]!.prompt).toMatch(/repository/i);
+  });
+
+  it("a plain edit of a repo post doesn't read the repository", async () => {
+    const { fn: runClaudeJson, calls } = fakeRunClaudeJson({ xText: "shorter" });
+    const resolveRepo = vi.fn();
+    await handleReviseDraft(
+      { draftId: "d1", xText: "the X post", instruction: "shorter", mode: "custom", repo: { type: "folder", path: "/x" } },
+      { getProfile: async () => emptyProfile(), runClaudeJson, resolveRepo },
+    );
+    expect(resolveRepo).not.toHaveBeenCalled();
+    expect(calls[0]!.cwd).toBeUndefined();
   });
 });
 
@@ -872,6 +901,12 @@ describe("handleRepoPosts (posts from a repo, 2026-10-10)", () => {
     expect(call!.prompt).toContain("postecho");
     expect(call!.prompt).toContain("tier gating");
     expect(call!.prompt).toContain("exactly 2 X posts");
+  });
+
+  it("passes the posts already written from the repo to the prompt", async () => {
+    const { deps, claude } = repoDeps({ posts: [{ text: "new one" }] });
+    await handleRepoPosts({ ideaId: "i1", source: folder, brief: "", format: "x", count: 1, previous: ["An old post."] }, deps);
+    expect(claude.calls[0]!.prompt).toContain("- An old post.");
   });
 
   it("says it's fetching first for a GitHub repository, and writes articles with titles", async () => {

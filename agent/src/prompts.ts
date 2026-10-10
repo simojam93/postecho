@@ -494,6 +494,8 @@ export type RepoPostsPromptOptions = {
   brief: string;
   format: RepoFormat;
   count: number;
+  /** Posts already written from this repository, so a new ask finds other angles (2026-10-10). */
+  previous?: string[];
 };
 
 const REPO_FORMAT_RULES: Record<RepoFormat, { what: string; rule: string; shape: string }> = {
@@ -527,6 +529,9 @@ export function repoPostsPrompt(o: RepoPostsPromptOptions): string {
       : "There is no brief: pick the most interesting recent work in it (a changelog, dated plans or specs, the newest parts of the code say what that is).",
     "",
     `Then write exactly ${o.count} ${f.what} the owner could publish, each on a different point: never two about the same one.`,
+    ...(o.previous?.length
+      ? ["", "Already written from this repository. Don't repeat their angles or facts: find other points.", ...o.previous.map((post) => `- ${post}`), ""]
+      : []),
     f.rule,
     "The repository is usually the owner's own work: write as the person who built it, in the first person. When the README makes clear it is someone else's project, write the owner's take on it instead, never claiming it as theirs.",
     "Be specific: what it does, a decision and its reason, a number or a detail from the code. Never invent features, numbers or results the repository doesn't show.",

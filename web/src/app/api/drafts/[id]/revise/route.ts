@@ -49,6 +49,16 @@ const Body = z.object({
  * "shorter hook"). materialize.ts (task A3) turns the result into a new
  * draft with `parentId` pointing back at this one and `status: "kept"`.
  */
+/** The repository a repo post came from, as the agent's source: `{ repo }`, or nothing when it's gone. */
+async function repoOf(post: typeof ideas.$inferSelect): Promise<{ repo?: { type: "folder"; path: string } | { type: "github"; url: string } }> {
+  const repoId = typeof post.meta.repoId === "string" ? post.meta.repoId : null;
+  const [repo] = repoId ? await db.select().from(ideas).where(eq(ideas.id, repoId)).limit(1) : [];
+  if (!repo?.url) return {};
+  if (repo.meta.sourceType === "folder" && typeof repo.meta.path === "string") return { repo: { type: "folder", path: repo.meta.path } };
+  if (repo.meta.sourceType === "github") return { repo: { type: "github", url: repo.url } };
+  return {};
+}
+
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -100,6 +110,9 @@ export async function POST(
         sourceText: source ? source.slice(0, SOURCE_MAX_CHARS) : null,
         history: await historyOf(draft),
         ...(label ? { label } : {}),
+        // A post from a repo moving to the other platform: the agent reads the whole repository
+        // again, not only the post (owner, 2026-10-10).
+        ...(idea?.kind === "repo_post" && (mode === "sync_linkedin" || mode === "sync_x") ? await repoOf(idea) : {}),
       };
     }
 

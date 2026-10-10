@@ -324,6 +324,21 @@ describe("POST /api/drafts/:id/revise", () => {
     });
   });
 
+  it("a post from a repo: moving it to the other platform sends the repository, so the agent reads all of it (2026-10-10)", async () => {
+    const [repo] = await state.db!.insert(ideas).values({ kind: "repo", url: "https://github.com/a/b", title: "a/b", meta: { sourceType: "github" } }).returning();
+    const [folder] = await state.db!.insert(ideas).values({ kind: "repo", url: "file:///Users/me/dev/p", title: "p", meta: { sourceType: "folder", path: "/Users/me/dev/p" } }).returning();
+    const [fromGithub] = await state.db!.insert(ideas).values({ kind: "repo_post", content: "the X post", meta: { repoId: repo.id, format: "x" } }).returning();
+    const [fromFolder] = await state.db!.insert(ideas).values({ kind: "repo_post", content: "another", meta: { repoId: folder.id, format: "x" } }).returning();
+    const [d1] = await state.db!.insert(drafts).values({ ideaId: fromGithub.id, xText: "the X post", status: "kept" }).returning();
+    const [d2] = await state.db!.insert(drafts).values({ ideaId: fromFolder.id, xText: "another", status: "kept" }).returning();
+    const li = await postRevise(jsonReq("http://test", "POST", { instruction: "Write the LinkedIn version", mode: "sync_linkedin" }), { params: Promise.resolve({ id: d1.id }) });
+    expect((await li.json()).job.payload.repo).toEqual({ type: "github", url: "https://github.com/a/b" });
+    const li2 = await postRevise(jsonReq("http://test", "POST", { instruction: "Write the LinkedIn version", mode: "sync_linkedin" }), { params: Promise.resolve({ id: d2.id }) });
+    expect((await li2.json()).job.payload.repo).toEqual({ type: "folder", path: "/Users/me/dev/p" });
+    const edit = await postRevise(jsonReq("http://test", "POST", { instruction: "shorter", mode: "custom" }), { params: Promise.resolve({ id: d1.id }) });
+    expect((await edit.json()).job.payload.repo).toBeUndefined();
+  });
+
   it("Edit with Claude: a voice switch is remembered on the idea; the default follows where the idea came from", async () => {
     const [note] = await state.db!.insert(ideas).values({ kind: "note", content: "my notes" }).returning();
     const [draft] = await state.db!.insert(drafts).values({ ideaId: note.id, xText: "x", status: "kept" }).returning();
