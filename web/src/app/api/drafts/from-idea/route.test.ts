@@ -258,6 +258,32 @@ describe("POST /api/drafts/from-idea", () => {
       expect(draft.meta).toMatchObject({ voice: "mine" });
     });
 
+    it("its card's human score comes with it, for the post's platform, so Compose shows it and offers Humanize", async () => {
+      const aiStyle = { slopScore: 31, verdict: "human", at: "2026-10-11T10:00:00.000Z" };
+      const withScore = async (format: string, content: string, title?: string) => (await state.db!.insert(ideas).values({
+        kind: "repo_post", title: title ?? null, content,
+        meta: { jobId: "00000000-0000-4000-8000-000000000002", repoId: "r", format, order: 0, aiStyle, ...(title ? { title } : {}) },
+      }).returning())[0];
+      const x = await withScore("x", "We shipped tier gating in a week.");
+      await POST(req({ ideaId: x.id }));
+      const [xDraft] = await state.db!.select().from(drafts).where(eq(drafts.ideaId, x.id));
+      expect(xDraft.meta).toMatchObject({
+        slop: { platform: "x", slopScore: 31, verdict: "human", at: aiStyle.at },
+        slopByPlatform: { x: { slopScore: 31, verdict: "human", at: aiStyle.at } },
+      });
+      const li = await withScore("linkedin", "A longer post about the launch. ".repeat(25));
+      await POST(req({ ideaId: li.id }));
+      const [liDraft] = await state.db!.select().from(drafts).where(eq(drafts.ideaId, li.id));
+      expect(liDraft.meta).toMatchObject({
+        slop: { platform: "linkedin", slopScore: 31 }, slopByPlatform: { linkedin: { slopScore: 31, verdict: "human" } },
+      });
+      // An article's editor has no score or Humanize: its score stays on the card.
+      const article = await withScore("article", "The body.", "A title");
+      await POST(req({ ideaId: article.id }));
+      const [articleDraft] = await state.db!.select().from(drafts).where(eq(drafts.ideaId, article.id));
+      expect(articleDraft.meta).not.toHaveProperty("slop");
+    });
+
     it("an X article: its title and body", async () => {
       const post = await repoPost("article", "Intro.\n\nHow it works\n\nThe body.", "What tier gating taught us");
       expect((await POST(req({ ideaId: post.id }))).status).toBe(201);

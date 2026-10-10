@@ -55,31 +55,32 @@ async function keepVideoPost(idea: typeof ideas.$inferSelect): Promise<void> {
     .where(and(eq(drafts.ideaId, idea.id), inArray(drafts.status, ["kept", "candidate"]))).limit(1);
   if (!inWrite) {
     const text = idea.content ?? "";
-    const aiStyle = idea.meta.aiStyle as { slopScore?: unknown; verdict?: unknown; at?: unknown } | undefined;
-    const scored = typeof aiStyle?.slopScore === "number" && typeof aiStyle.verdict === "string";
-    const at = typeof aiStyle?.at === "string" ? aiStyle.at : new Date().toISOString();
     await db.insert(drafts).values({
       ideaId: idea.id,
       xText: text,
       status: "kept",
-      meta: {
-        overLimit: text.length > 280,
-        voice: voiceOfIdea(idea),
-        // The shape lib/slop.ts's runSlopCheck persists, so the editor's badge needs no check.
-        ...(scored ? {
-          slop: { platform: "x", slopScore: aiStyle.slopScore, verdict: aiStyle.verdict, at },
-          slopByPlatform: { x: { slopScore: aiStyle.slopScore, verdict: aiStyle.verdict, at } },
-        } : {}),
-      },
+      meta: { overLimit: text.length > 280, voice: voiceOfIdea(idea), ...cardScore(idea, "x") },
     });
   }
   await db.update(ideas).set({ status: "used" }).where(eq(ideas.id, idea.id));
 }
 
 /**
+ * The card's human score (meta.aiStyle) as the draft's, for the post's platform: the shape
+ * lib/slop.ts's runSlopCheck persists, so the editor's badge needs no check and offers Humanize.
+ */
+function cardScore(idea: typeof ideas.$inferSelect, platform: "x" | "linkedin"): Record<string, unknown> {
+  const aiStyle = idea.meta.aiStyle as { slopScore?: unknown; verdict?: unknown; at?: unknown } | undefined;
+  if (typeof aiStyle?.slopScore !== "number" || typeof aiStyle.verdict !== "string") return {};
+  const verdict = { slopScore: aiStyle.slopScore, verdict: aiStyle.verdict, at: typeof aiStyle.at === "string" ? aiStyle.at : new Date().toISOString() };
+  return { slop: { platform, ...verdict }, slopByPlatform: { [platform]: verdict } };
+}
+
+/**
  * A post from a repo (2026-10-10, materialize.ts's materializeRepoPosts): like a video's ready
  * post, it becomes the post's chosen version as it is, without a job, in its format's columns: an
- * X post in xText, a LinkedIn post in linkedinText, an X article in articleTitle and articleText.
+ * X post in xText, a LinkedIn post in linkedinText, an X article in articleTitle and articleText,
+ * with the card's human score as a video's post has it.
  * Once: a second Use finds the post already in Write.
  */
 async function keepRepoPost(idea: typeof ideas.$inferSelect): Promise<void> {
@@ -98,7 +99,12 @@ async function keepRepoPost(idea: typeof ideas.$inferSelect): Promise<void> {
       ideaId: idea.id,
       ...columns,
       status: "kept",
-      meta: { voice: voiceOfIdea(idea), ...(format === "x" ? { overLimit: text.length > 280 } : {}) },
+      meta: {
+        voice: voiceOfIdea(idea),
+        ...(format === "x" ? { overLimit: text.length > 280 } : {}),
+        // An article's editor has no score or Humanize: its score stays on the card.
+        ...(format === "article" ? {} : cardScore(idea, format === "linkedin" ? "linkedin" : "x")),
+      },
     });
   }
   await db.update(ideas).set({ status: "used" }).where(eq(ideas.id, idea.id));

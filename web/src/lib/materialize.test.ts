@@ -499,6 +499,20 @@ describe("materialize — repo_posts (posts from a repo, 2026-10-10)", () => {
     expect(await posts(db)).toHaveLength(2);
   });
 
+  it("each post's Jev score becomes its card's human score (meta.aiStyle), as a video's posts' do", async () => {
+    const db = await createTestDb();
+    const repo = await repoIdea(db);
+    const job = repoJob("00000000-0000-4000-8000-000000000019", repo.id, "x");
+    expect(await materialize(db as never, job, {
+      posts: [{ text: "Scored", slop: { platform: "x", slopScore: 22, verdict: "human" } }, { text: "Unscored" }],
+      repoName: "a/b",
+    })).toEqual({ ok: true });
+    const rows = await posts(db);
+    expect(rows.find((r) => r.content === "Scored")!.meta).toMatchObject({ aiStyle: { slopScore: 22, verdict: "human" } });
+    expect(typeof (rows.find((r) => r.content === "Scored")!.meta.aiStyle as { at?: unknown }).at).toBe("string");
+    expect(rows.find((r) => r.content === "Unscored")!.meta).not.toHaveProperty("aiStyle");
+  });
+
   it("an article keeps its title", async () => {
     const db = await createTestDb();
     const repo = await repoIdea(db);

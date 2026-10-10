@@ -6,6 +6,7 @@ import {
   REPO_ARTICLE_SCHEMA,
   REPO_LINKEDIN_SCHEMA,
   REPO_X_SCHEMA,
+  SLOP_CHECK_MAX_CHARS,
   REVISE_SCHEMA,
   STYLE_GUIDE_SCHEMA,
   X_DRAFTS_SCHEMA,
@@ -969,6 +970,48 @@ describe("handleRepoPosts (posts from a repo, 2026-10-10)", () => {
     deps.runClaudeJson = fakeRunClaudeJson({ posts: [{ text: "one" }] }).fn;
     deps.removeClone = async () => { throw new Error("EBUSY"); };
     await expect(handleRepoPosts(base, deps)).resolves.toMatchObject({ repoName: "a/b" });
+  });
+
+  it("Jev scores each post for its platform, all kept in Claude's order (an article's body as LinkedIn)", async () => {
+    const checkSlop = vi.fn(async (text: string, _platform?: "x" | "linkedin") => ({ slopScore: text === "two" ? 20 : 60, verdict: text === "two" ? "human" : "slop" }));
+    const x = repoDeps({ posts: [{ text: "one" }, { text: "two" }] });
+    const out = await handleRepoPosts({ ideaId: "i1", source: folder, brief: "", format: "x", count: 2 }, { ...x.deps, checkSlop });
+    expect(out.posts).toEqual([
+      { text: "one", slop: { platform: "x", slopScore: 60, verdict: "slop" } },
+      { text: "two", slop: { platform: "x", slopScore: 20, verdict: "human" } },
+    ]);
+    expect(checkSlop.mock.calls.map((c) => c[1])).toEqual(["x", "x"]);
+
+    checkSlop.mockClear();
+    const li = repoDeps({ posts: [{ text: LI_OK }] });
+    const liOut = await handleRepoPosts({ ideaId: "i1", source: folder, brief: "", format: "linkedin", count: 1 }, { ...li.deps, checkSlop });
+    expect(liOut.posts[0]).toMatchObject({ slop: { platform: "linkedin" } });
+
+    checkSlop.mockClear();
+    const article = { title: "How it works", text: "b".repeat(3000) };
+    const ar = repoDeps({ posts: [article] });
+    const arOut = await handleRepoPosts({ ideaId: "i1", source: folder, brief: "", format: "article", count: 1 }, { ...ar.deps, checkSlop });
+    expect(checkSlop).toHaveBeenCalledWith(article.text, "linkedin");
+    expect(arOut.posts[0]).toEqual({ ...article, slop: { platform: "linkedin", slopScore: 60, verdict: "slop" } });
+  });
+
+  it("a text longer than Jev takes, or a check that fails, leaves that post unscored; without Jev nothing is checked", async () => {
+    const checkSlop = vi.fn(async (text: string) => {
+      if (text === "boom") throw new Error("jev down");
+      return { slopScore: 30, verdict: "human" };
+    });
+    const long = { title: "Long", text: "c".repeat(SLOP_CHECK_MAX_CHARS + 1) };
+    const ar = repoDeps({ posts: [long] });
+    const arOut = await handleRepoPosts({ ideaId: "i1", source: folder, brief: "", format: "article", count: 1 }, { ...ar.deps, checkSlop });
+    expect(checkSlop).not.toHaveBeenCalled();
+    expect(arOut.posts).toEqual([long]);
+
+    const x = repoDeps({ posts: [{ text: "boom" }, { text: "fine" }] });
+    const xOut = await handleRepoPosts({ ideaId: "i1", source: folder, brief: "", format: "x", count: 2 }, { ...x.deps, checkSlop });
+    expect(xOut.posts).toEqual([{ text: "boom" }, { text: "fine", slop: { platform: "x", slopScore: 30, verdict: "human" } }]);
+
+    const plain = repoDeps({ posts: [{ text: "one" }] });
+    expect((await handleRepoPosts({ ideaId: "i1", source: folder, brief: "", format: "x", count: 1 }, plain.deps)).posts).toEqual([{ text: "one" }]);
   });
 
   it("a source that can't be read fails the job with its sentence", async () => {

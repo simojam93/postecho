@@ -389,7 +389,12 @@ async function materializeVideoIdeas(db: typeof Db, job: MaterializeJob, result:
  * 4,000; a post outside them is dropped, as the agent drops it, and a result left with none is refused.
  */
 const RepoPostsResult = z.object({
-  posts: z.array(z.object({ text: z.string(), title: z.string().optional() })).min(1).max(25),
+  posts: z.array(z.object({
+    text: z.string(),
+    title: z.string().optional(),
+    // Jev's verdict when the agent checked it (handlers.ts's scoreRepoPosts), as a video's posts carry.
+    slop: JevVerdict.extend({ platform: z.enum(["x", "linkedin"]) }).strict().optional(),
+  })).min(1).max(25),
   repoName: z.string().min(1).max(200),
 });
 const RepoFormat = z.enum(["x", "linkedin", "article"]);
@@ -401,7 +406,8 @@ const REPO_POST_BY_FORMAT = {
 
 /**
  * The posts become repo_post rows under their source (the `repo` idea), in Claude's order
- * (meta.order), with the format, the article's title (also the row's title) and the repo's name.
+ * (meta.order), with the format, the article's title (also the row's title), the repo's name and
+ * Jev's verdict as meta.aiStyle when the agent checked it.
  * Use keeps one as the post's version (POST /api/drafts/from-idea). A new batch for the same
  * source adds to its posts still unreviewed instead of replacing them, so several asks in a row
  * add up (owner, 2026-10-10). Once per job.
@@ -411,11 +417,11 @@ async function materializeRepoPosts(db: typeof Db, job: MaterializeJob, result: 
   const format = RepoFormat.safeParse(job.payload.format);
   if (!parsed.success || !format.success) return { ok: false, error: INVALID_SHAPE_ERROR };
   const itemSchema = REPO_POST_BY_FORMAT[format.data];
-  const posts = parsed.data.posts.flatMap((post): Array<{ text: string; title: string | null }> => {
+  const posts = parsed.data.posts.flatMap((post): Array<{ text: string; title: string | null; slop?: { slopScore: number; verdict: string } }> => {
     const item = itemSchema.safeParse(post);
     if (!item.success) return [];
     const data: { text: string; title?: string } = item.data;
-    return [{ text: data.text, title: data.title ?? null }];
+    return [{ text: data.text, title: data.title ?? null, slop: post.slop }];
   });
   if (posts.length === 0) return { ok: false, error: INVALID_SHAPE_ERROR };
 
@@ -426,6 +432,7 @@ async function materializeRepoPosts(db: typeof Db, job: MaterializeJob, result: 
   const [already] = await db.select({ id: ideas.id }).from(ideas).where(sql`${ideas.meta}->>'jobId' = ${job.id}`).limit(1);
   if (already) return { ok: true };
 
+  const at = new Date().toISOString();
   await db.insert(ideas).values(posts.map((post, order) => ({
     kind: "repo_post" as const,
     source: "manual" as const,
@@ -438,6 +445,8 @@ async function materializeRepoPosts(db: typeof Db, job: MaterializeJob, result: 
       format: format.data,
       order,
       ...(post.title ? { title: post.title } : {}),
+      // The card's human score, the shape a video's posts store.
+      ...(post.slop ? { aiStyle: { slopScore: post.slop.slopScore, verdict: post.slop.verdict, at } } : {}),
     },
   })));
   return { ok: true };

@@ -169,6 +169,12 @@ export function parseStyleGuideResult(value: unknown) {
 // ---------------------------------------------------------------------------
 
 /**
+ * The longest text Jev's check takes from the agent (web's POST /api/agent/slop-check, 6,000
+ * characters). A longer text, an X article's body mostly, isn't sent and stays unscored.
+ */
+export const SLOP_CHECK_MAX_CHARS = 6000;
+
+/**
  * The per-call ceiling for a humanized rewrite, which keeps "roughly the same
  * length": an X post, or a text that would fit one, must still fit 280
  * characters; a longer LinkedIn post may grow by at most 40%, within the

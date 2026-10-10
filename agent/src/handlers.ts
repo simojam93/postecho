@@ -22,6 +22,7 @@ import {
   X_DRAFTS_SCHEMA,
   parseXDraftsResult,
   humanizeMaxChars,
+  SLOP_CHECK_MAX_CHARS,
   humanizeSchema,
   IMAGE_PROMPT_SCHEMA,
   parseDraftsResult,
@@ -739,10 +740,38 @@ export async function handleRepoPosts(
       readOnlyTools: true,
     });
     const clean = hashtagsAllowed(profile) ? posts : posts.map((post) => ({ ...post, text: stripHashtagLines(post.text) }));
-    return { posts: clean.slice(0, p.count), repoName: repo.name };
+    return { posts: await scoreRepoPosts(clean.slice(0, p.count), p.format, deps), repoName: repo.name };
   } finally {
     await releaseRepo(p.source, p.keepClone, deps);
   }
+}
+
+type RepoPost = { text: string; title?: string };
+
+/**
+ * Jev's AI-style check on each post from a repo, as a video's posts get (pickBestTakes), so the card
+ * shows its human score and Compose its badge and Humanize. Every post is kept in Claude's order: the
+ * owner asked for this many. An X post is scored as X, a LinkedIn post and an article's body as
+ * LinkedIn. A text over SLOP_CHECK_MAX_CHARS (a long article), a failed check, or no Jev leaves the
+ * post unscored.
+ */
+async function scoreRepoPosts(
+  posts: RepoPost[],
+  format: "x" | "linkedin" | "article",
+  deps: HandlerDeps,
+): Promise<Array<RepoPost & { slop?: { platform: "x" | "linkedin"; slopScore: number; verdict: string } }>> {
+  const checkSlop = deps.checkSlop;
+  if (!checkSlop) return posts;
+  const platform: "x" | "linkedin" = format === "x" ? "x" : "linkedin";
+  return Promise.all(posts.map(async (post) => {
+    if (!post.text.trim() || post.text.length > SLOP_CHECK_MAX_CHARS) return post;
+    try {
+      const verdict = await checkSlop(post.text, platform);
+      return { ...post, slop: { platform, slopScore: verdict.slopScore, verdict: verdict.verdict } };
+    } catch {
+      return post;
+    }
+  }));
 }
 
 /** pick_folder: the OS folder picker on this computer -> { path } or { cancelled: true }. */
