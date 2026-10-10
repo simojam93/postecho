@@ -369,3 +369,59 @@ describe("createClaudeRunner", () => {
     }
   });
 });
+
+describe("the tools a media job needs (media from a repo, 2026-10-11)", () => {
+  function capture() {
+    const seen: { args: string[]; options: Record<string, unknown> } = { args: [], options: {} };
+    const spawnImpl = vi.fn((_bin: string, args: readonly string[], options: Record<string, unknown>) => {
+      seen.args = [...args];
+      seen.options = options;
+      return fakeChild({ stdoutChunks: [successEnvelope({ ok: true })] }) as never;
+    });
+    return { seen, spawnImpl };
+  }
+
+  it("runs with exactly the tools asked for, hardened, and may write in the extra directories", async () => {
+    const { seen, spawnImpl } = capture();
+    const runner = createClaudeRunner({ claudeBin: "claude", model: "sonnet", timeoutMs: 5000, spawnImpl });
+    await runner.runClaudeJson({
+      prompt: "p", system: "s", schema: { type: "object" }, parse: (x) => x,
+      cwd: "/Users/me/dev/app", tools: "Read Glob Grep Bash Write", addDirs: ["/Users/me/.postecho/media/d1"],
+    });
+    expect(seen.options.cwd).toBe("/Users/me/dev/app");
+    expect(seen.args[seen.args.indexOf("--allowedTools") + 1]).toBe("Read Glob Grep Bash Write");
+    expect(seen.args.filter((a) => a === "--allowedTools")).toHaveLength(1);
+    expect(seen.args[seen.args.indexOf("--setting-sources") + 1]).toBe("user");
+    expect(seen.args).toContain("--strict-mcp-config");
+    expect(seen.args[seen.args.indexOf("--add-dir") + 1]).toBe("/Users/me/.postecho/media/d1");
+  });
+
+  it("adds no directory unless asked", async () => {
+    const { seen, spawnImpl } = capture();
+    const runner = createClaudeRunner({ claudeBin: "claude", model: "sonnet", timeoutMs: 5000, spawnImpl });
+    await runner.runClaudeJson({ prompt: "p", system: "s", schema: {}, parse: (x) => x, cwd: "/r", readOnlyTools: true });
+    expect(seen.args).not.toContain("--add-dir");
+  });
+
+  it("takes a call's own time, still capped by the job's deadline", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-10-11T10:00:00Z"));
+      const child = fakeChild({ neverCloses: true });
+      const runner = createClaudeRunner({ claudeBin: "claude", model: "sonnet", timeoutMs: 60_000, spawnImpl: vi.fn(() => child as never) });
+      const long = runner.runClaudeJson({ prompt: "p", system: "s", schema: {}, parse: (x) => x, timeoutMs: 30 * 60_000, deadline: Date.now() + 40 * 60_000 });
+      const assertion = expect(long).rejects.toThrow("PostEcho stopped after 30 min");
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(child.kill).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(29 * 60_000);
+      await assertion;
+
+      const capped = runner.runClaudeJson({ prompt: "p", system: "s", schema: {}, parse: (x) => x, timeoutMs: 30 * 60_000, deadline: Date.now() + 5 * 60_000 });
+      const cappedAssertion = expect(capped).rejects.toThrow("PostEcho stopped after 5 min");
+      await vi.advanceTimersByTimeAsync(5 * 60_000);
+      await cappedAssertion;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

@@ -151,6 +151,15 @@ export type RunClaudeJsonOptions<T> = {
   cwd?: string;
   /** Read, Glob and Grep allowed, nothing else: Claude looks at the repository, never runs or changes it. */
   readOnlyTools?: boolean;
+  /**
+   * Exactly these tools (the `--allowedTools` value), hardened like readOnlyTools: screenshots and videos of
+   * the owner's own folder (media from a repo, 2026-10-11) run the project, so they need Bash and Write.
+   */
+  tools?: string;
+  /** Directories outside cwd Claude may also write in (`--add-dir`): the post's media directory. */
+  addDirs?: string[];
+  /** This call's own time instead of CLAUDE_TIMEOUT_MS's: a long media job's remaining budget. Still capped by the deadline. */
+  timeoutMs?: number;
 };
 
 /**
@@ -171,7 +180,14 @@ function tooLongMessage(ms: number): string {
 const RETRY_REMINDER =
   "\n\nReturn ONLY valid JSON matching the schema. No prose, no markdown code fences, no explanation.";
 
-function buildArgs(model: string, schema: object, system: string, readOnlyTools = false): string[] {
+function buildArgs(
+  model: string,
+  schema: object,
+  system: string,
+  opts: { readOnlyTools?: boolean; tools?: string; addDirs?: string[] },
+): string[] {
+  const tools = opts.tools ?? (opts.readOnlyTools ? "Read Glob Grep" : "");
+  const hardened = Boolean(opts.tools || opts.readOnlyTools);
   return [
     "-p",
     "--output-format",
@@ -185,9 +201,10 @@ function buildArgs(model: string, schema: object, system: string, readOnlyTools 
     system,
     // Reading a repository, possibly a stranger's public one: its own
     // .claude settings (hooks run shell commands) and .mcp.json stay unloaded.
-    ...(readOnlyTools ? ["--setting-sources", "user", "--strict-mcp-config"] : []),
+    ...(hardened ? ["--setting-sources", "user", "--strict-mcp-config"] : []),
+    ...(opts.addDirs ?? []).flatMap((dir) => ["--add-dir", dir]),
     "--allowedTools",
-    readOnlyTools ? "Read Glob Grep" : "",
+    tools,
   ];
 }
 
@@ -249,8 +266,8 @@ export function createClaudeRunner(deps: ClaudeRunnerDeps) {
   let model = deps.model;
 
   /** This call's time: CLAUDE_TIMEOUT_MS, doubled for a slow model and again for a long read, never past the job's deadline. */
-  function timeoutFor(opts: { long?: boolean; deadline?: number }): number {
-    const perCall = deps.timeoutMs * (SLOW_MODELS.has(model) ? 2 : 1) * (opts.long ? 2 : 1);
+  function timeoutFor(opts: { long?: boolean; deadline?: number; timeoutMs?: number }): number {
+    const perCall = opts.timeoutMs ?? deps.timeoutMs * (SLOW_MODELS.has(model) ? 2 : 1) * (opts.long ? 2 : 1);
     if (opts.deadline === undefined) return perCall;
     const left = opts.deadline - Date.now();
     if (left < MIN_CALL_MS) throw new ClaudeTimeoutError("PostEcho ran out of time for this one. Try again.");
@@ -263,7 +280,7 @@ export function createClaudeRunner(deps: ClaudeRunnerDeps) {
     const { stdout, stderr, code } = await spawnClaude(
       spawnImpl,
       deps.claudeBin,
-      buildArgs(model, opts.schema, system, opts.readOnlyTools),
+      buildArgs(model, opts.schema, system, opts),
       opts.prompt,
       timeoutMs,
       opts.cwd,
