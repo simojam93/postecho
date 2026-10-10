@@ -597,7 +597,15 @@ export function mediaCardPrompt(o: { repoName?: string; sourceName?: string; pos
 }
 
 /** screenshots: start the owner's app and record the screens the post talks about. */
-export function mediaScreenshotsPrompt(o: { repoName: string; postText: string; outDir: string }): string {
+/** The rules for running the owner's app on a computer where other servers run (live, 2026-10-11). */
+function runAppRules(port: number): string[] {
+  return [
+    `Run the app on port ${port} and only there (with PORT=${port}, --port ${port} or the way its scripts take a port). Other servers on this computer belong to the owner: never touch them.`,
+    "Stop only the processes you started, by their PID, with kill <pid>. Never use pkill or killall, and never stop a process by its name or by another port.",
+  ];
+}
+
+export function mediaScreenshotsPrompt(o: { repoName: string; postText: string; outDir: string; port: number }): string {
   return [
     `You are in "${o.repoName}", the owner's own project, your working directory.`,
     ...postBlock(o.postText),
@@ -607,6 +615,7 @@ export function mediaScreenshotsPrompt(o: { repoName: string; postText: string; 
     "2. Open the screens the post talks about with Playwright, for example `npx -y playwright screenshot --channel=chrome --viewport-size=1440,900 <url> <file>`, or a short Node script with playwright when a screen needs a click first.",
     `3. Save each one as a PNG named screenshot-1.png, screenshot-2.png and so on, in ${o.outDir} and nowhere else.`,
     "4. Then stop everything you started: every server and browser you launched.",
+    ...runAppRules(o.port),
     "Never change, commit or delete the project's own files. Never sign in to an account, enter a password or buy anything. When the app can't start (a missing secret, a database that isn't running), stop and say why in note.",
     "",
     'Return a JSON object: { "screenshots": [ { "file": "screenshot-1.png", "caption": "what it shows" } ], "note": "only when something stopped you" }.',
@@ -614,7 +623,7 @@ export function mediaScreenshotsPrompt(o: { repoName: string; postText: string; 
 }
 
 /** video: the owner's brag-slim skill on their folder, from the post's angle. */
-export function mediaVideoPrompt(o: { repoName: string; postText: string; outDir: string }): string {
+export function mediaVideoPrompt(o: { repoName: string; postText: string; outDir: string; port: number }): string {
   return [
     `You are in "${o.repoName}", the owner's own project, your working directory.`,
     ...postBlock(o.postText),
@@ -622,6 +631,7 @@ export function mediaVideoPrompt(o: { repoName: string; postText: string; outDir
     "Use the brag-slim skill to make a short launch video of this project. Its angle is the post above: the video shows what the post says.",
     `Write the skill's output into ${o.outDir} instead of the project folder: brag.mp4 (the video) and brag.jpg (its cover), with every intermediate file inside ${o.outDir} too.`,
     "Never change, commit or delete the project's own files. Don't publish or upload anything. Stop every server and browser you started when you're done.",
+    ...runAppRules(o.port),
     "",
     'Return a JSON object: { "summary": "what the video shows, or why it could not be made" }.',
   ].join("\n");

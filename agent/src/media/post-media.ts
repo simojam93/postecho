@@ -17,6 +17,7 @@ import {
 } from "../schemas.js";
 import { CARD_SIZES, cardHtml, type CardSize } from "./card.js";
 import { isImageFile, mediaDirFor } from "./paths.js";
+import { freeLocalPort, stopLocalPort } from "./run-app.js";
 
 /** What post_media needs besides Claude: where the files go, how a card is drawn, and how the source's image is fetched. */
 export type MediaDeps = {
@@ -28,6 +29,10 @@ export type MediaDeps = {
   token?: () => string;
   /** The global fetch; a fake in tests. */
   fetch?: (url: string, init?: RequestInit) => Promise<Response>;
+  /** A free local port for the app a screenshot or video job starts (run-app.ts). */
+  freePort?: () => Promise<number>;
+  /** Stops whatever listens on that port once the job is over, success or not (run-app.ts). */
+  stopPort?: (port: number) => Promise<void>;
 };
 
 /** One file the job made, as the web stores it in drafts.meta.media. */
@@ -36,6 +41,12 @@ export type MediaItem = { file: string; kind: "image" | "card" | "screenshot" | 
 /** The tools each long kind runs with: the project has to start, and brag-slim edits its own scenes. */
 export const SCREENSHOT_TOOLS = "Read Glob Grep Bash Write";
 export const VIDEO_TOOLS = "Read Glob Grep Bash Write Skill Edit";
+/**
+ * Live, 2026-10-11: told to stop what it started, Claude stopped every Next.js server on the computer,
+ * PostEcho's own included. It now gets a port of its own, may only stop its own processes by PID, and
+ * these are refused outright.
+ */
+export const KILL_BY_NAME = "Bash(pkill:*) Bash(killall:*)";
 
 /** The owner's rule (spec 2026-10-11): code runs only from their own folders. */
 export const FOLDER_ONLY = "Screenshots and videos are made only from a folder on this computer: PostEcho never runs code from a GitHub repository.";
@@ -247,15 +258,17 @@ async function screenshots(p: Payload, deps: HandlerDeps, dir: string, token: st
   await report("reading");
   const repo = await resolveSource(p, deps);
   const work = await workFolder(dir, token);
+  const port = await (deps.media!.freePort ?? freeLocalPort)();
   try {
     await report("making");
     const reply = await deps.runClaudeJson({
-      prompt: mediaScreenshotsPrompt({ repoName: repo.name, postText: p.postText, outDir: work }),
+      prompt: mediaScreenshotsPrompt({ repoName: repo.name, postText: p.postText, outDir: work, port }),
       system: mediaSystemPrompt(),
       schema: MEDIA_SCREENSHOTS_SCHEMA,
       parse: parseMediaScreenshots,
       cwd: repo.dir,
       tools: SCREENSHOT_TOOLS,
+      disallowedTools: KILL_BY_NAME,
       addDirs: [work],
     });
     await report("saving");
@@ -270,6 +283,7 @@ async function screenshots(p: Payload, deps: HandlerDeps, dir: string, token: st
     }
     return items;
   } finally {
+    await (deps.media!.stopPort ?? stopLocalPort)(port);
     await rm(work, { recursive: true, force: true });
   }
 }
@@ -278,15 +292,17 @@ async function video(p: Payload, deps: HandlerDeps, dir: string, token: string, 
   await report("reading");
   const repo = await resolveSource(p, deps);
   const work = await workFolder(dir, token);
+  const port = await (deps.media!.freePort ?? freeLocalPort)();
   try {
     await report("making");
     const reply = await deps.runClaudeJson({
-      prompt: mediaVideoPrompt({ repoName: repo.name, postText: p.postText, outDir: work }),
+      prompt: mediaVideoPrompt({ repoName: repo.name, postText: p.postText, outDir: work, port }),
       system: mediaSystemPrompt(),
       schema: MEDIA_VIDEO_SCHEMA,
       parse: parseMediaVideo,
       cwd: repo.dir,
       tools: VIDEO_TOOLS,
+      disallowedTools: KILL_BY_NAME,
       addDirs: [work],
     });
     await report("saving");
@@ -302,6 +318,7 @@ async function video(p: Payload, deps: HandlerDeps, dir: string, token: string, 
     }
     return items;
   } finally {
+    await (deps.media!.stopPort ?? stopLocalPort)(port);
     await rm(work, { recursive: true, force: true });
   }
 }

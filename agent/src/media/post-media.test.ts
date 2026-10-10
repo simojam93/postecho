@@ -24,13 +24,13 @@ afterEach(async () => {
 
 const draftDir = () => join(mediaBase, DRAFT);
 
-type Call = { prompt: string; schema: object; cwd?: string; readOnlyTools?: boolean; tools?: string; addDirs?: string[] };
+type Call = { prompt: string; schema: object; cwd?: string; readOnlyTools?: boolean; tools?: string; addDirs?: string[]; disallowedTools?: string };
 
 /** Claude, faked: `reply` runs before the answer (to write files like Claude Code would), then the fixture is parsed. */
 function fakeClaude(fixture: unknown, reply?: (call: Call) => Promise<void>) {
   const calls: Call[] = [];
   async function fn<T>(opts: Call & { system: string; parse: (value: unknown) => T }): Promise<T> {
-    const call = { prompt: opts.prompt, schema: opts.schema, cwd: opts.cwd, readOnlyTools: opts.readOnlyTools, tools: opts.tools, addDirs: opts.addDirs };
+    const call = { prompt: opts.prompt, schema: opts.schema, cwd: opts.cwd, readOnlyTools: opts.readOnlyTools, tools: opts.tools, addDirs: opts.addDirs, disallowedTools: opts.disallowedTools };
     calls.push(call);
     await reply?.(call);
     return opts.parse(fixture);
@@ -47,7 +47,7 @@ function makeDeps(claude: ReturnType<typeof fakeClaude>, over: Partial<HandlerDe
     runClaudeJson: claude.fn,
     resolveRepo,
     reportProgress: async (p) => { progress.push(p); },
-    media: { baseDir: mediaBase, renderCard, token: () => "t0k3n" },
+    media: { baseDir: mediaBase, renderCard, token: () => "t0k3n", freePort: async () => 4123, stopPort: vi.fn(async () => {}) },
     ...over,
   } as HandlerDeps;
   return { deps, progress, renderCard, resolveRepo };
@@ -276,6 +276,24 @@ describe("screenshots", () => {
     // The work folder is gone, the four screenshots stay.
     expect((await readdir(draftDir())).sort()).toEqual(["screenshot-t0k3n-1.png", "screenshot-t0k3n-2.png", "screenshot-t0k3n-3.png", "screenshot-t0k3n-4.png"]);
     expect(progress.map((p) => p.phase)).toEqual(["reading", "making", "saving"]);
+  });
+
+  it("runs the app on a port of its own, never kills by name, and stops that port afterwards even on failure (live, 2026-10-11)", async () => {
+    // Live: asked to stop what it started, Claude stopped every Next.js server on the computer, PostEcho's own too.
+    const { deps } = makeDeps(fakeClaude({ screenshots: [], note: "no app" }));
+    await expect(handlePostMedia(payload("screenshots"), deps)).rejects.toThrow();
+    expect(deps.media!.stopPort).toHaveBeenCalledWith(4123);
+  });
+
+  it("tells Claude the port and forbids killing processes by name", async () => {
+    const claude = fakeClaude({ screenshots: [] , note: "x" });
+    const { deps } = makeDeps(claude);
+    await handlePostMedia(payload("screenshots"), deps).catch(() => {});
+    const [c] = claude.calls;
+    expect(c!.prompt).toContain("4123");
+    expect(c!.prompt).toMatch(/never use pkill or killall/i);
+    expect(c!.disallowedTools).toMatch(/Bash\(pkill:\*\)/);
+    expect(c!.disallowedTools).toMatch(/Bash\(killall:\*\)/);
   });
 
   it("fails with Claude's note when nothing was saved, and leaves no work folder", async () => {

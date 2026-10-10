@@ -158,6 +158,8 @@ export type RunClaudeJsonOptions<T> = {
   tools?: string;
   /** Directories outside cwd Claude may also write in (`--add-dir`): the post's media directory. */
   addDirs?: string[];
+  /** Tools refused even when allowed (`--disallowedTools`), like killing processes by name (2026-10-11). */
+  disallowedTools?: string;
   /** This call's own time instead of CLAUDE_TIMEOUT_MS's: a long media job's remaining budget. Still capped by the deadline. */
   timeoutMs?: number;
 };
@@ -184,7 +186,7 @@ function buildArgs(
   model: string,
   schema: object,
   system: string,
-  opts: { readOnlyTools?: boolean; tools?: string; addDirs?: string[] },
+  opts: { readOnlyTools?: boolean; tools?: string; addDirs?: string[]; disallowedTools?: string },
 ): string[] {
   const tools = opts.tools ?? (opts.readOnlyTools ? "Read Glob Grep" : "");
   const hardened = Boolean(opts.tools || opts.readOnlyTools);
@@ -205,6 +207,7 @@ function buildArgs(
     ...(opts.addDirs ?? []).flatMap((dir) => ["--add-dir", dir]),
     "--allowedTools",
     tools,
+    ...(opts.disallowedTools ? ["--disallowedTools", opts.disallowedTools] : []),
   ];
 }
 

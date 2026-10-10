@@ -57,6 +57,8 @@ export type RunClaudeJsonFn = <T>(opts: {
   readOnlyTools?: boolean;
   /** A long read, like a whole repository: twice the time, whatever the job's kind. */
   long?: boolean;
+  /** Tools refused even when allowed (claude.ts). */
+  disallowedTools?: string;
   /** Media from a repo: exactly these tools, and directories outside cwd it may write in (claude.ts). */
   tools?: string;
   addDirs?: string[];
