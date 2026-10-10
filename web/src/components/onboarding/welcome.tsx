@@ -74,7 +74,7 @@ const SOURCE_GUIDES: Array<KeyGuide["id"]> = ["bluesky", "youtube", "producthunt
 const LOOP: Array<[tab: string, what: string]> = [
   ["Find Ideas", "From your code or the news"],
   ["Compose", "Takes in your voice"],
-  ["Calendar", "Your posts by date"],
+  ["Schedule", "Your posts by date"],
 ];
 
 /** Step 4: what Write does, with a small picture of it. */
@@ -99,16 +99,16 @@ export function WriteStep({ titleId }: { titleId: string }) {
   );
 }
 
-/** Step 5: what Calendar does, with a small week of it. */
-export function CalendarStep({ titleId }: { titleId: string }) {
+/** Step 5: what Schedule does, with a small week of it. */
+export function ScheduleStep({ titleId }: { titleId: string }) {
   const week: Array<[day: string, post: "scheduled" | "posted" | null]> = [
     ["Mon", null], ["Tue", "posted"], ["Wed", null], ["Thu", "scheduled"], ["Fri", null], ["Sat", "scheduled"], ["Sun", null],
   ];
   return (
     <div className="space-y-5">
       <div className="space-y-1">
-        <h2 id={titleId} className="text-lg font-semibold">Calendar: your posts by date</h2>
-        <p className="text-sm text-text-dim">Everything you schedule, day by day. Once a post is out, tell PostEcho how it did: it learns what works for you.</p>
+        <h2 id={titleId} className="text-lg font-semibold">Schedule: your posts by date</h2>
+        <p className="text-sm text-text-dim">Posts you mark Ready in Compose line up here, to schedule in one sitting. Once a post is out, tell PostEcho how it did: it learns what works for you.</p>
       </div>
       <div aria-hidden className="space-y-3">
         <div className="grid grid-cols-7 gap-1.5">
@@ -338,7 +338,7 @@ function Welcome({ onClose }: { onClose: () => void }) {
           <SearchStep titleId={titleId} value={topic ?? ""} onChange={setTopic} onSubmit={() => void findIdeas()} inputRef={inputRef} />
         )}
         {step === "write" && <WriteStep titleId={titleId} />}
-        {step === "calendar" && <CalendarStep titleId={titleId} />}
+        {step === "calendar" && <ScheduleStep titleId={titleId} />}
 
         {step && (
           <div className="flex items-center justify-end gap-2 border-t border-border pt-4">

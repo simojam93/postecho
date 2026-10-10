@@ -29,6 +29,8 @@ describe("Write's Schedule window (2026-09-24)", () => {
     expect(html).toContain("Schedule it with each platform&#x27;s own scheduler, then tell PostEcho the time.");
     expect(render({ targets: [{ platform: "x", text: "only X" }] })).toContain("Schedule it with X&#x27;s own scheduler");
     expect(html).toContain("No emails.");
+    expect(html).toContain("Schedule shows it by date.");
+    expect(html).not.toContain("Calendar");
   });
 
   it("X, already open from the click: says where its scheduler is, offers it again, and records the time", () => {

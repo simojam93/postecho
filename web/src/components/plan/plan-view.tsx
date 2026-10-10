@@ -210,7 +210,7 @@ export function PlanView({ initialDay }: { initialDay?: DayKey } = {}) {
     }
     if (action === "remove") {
       const label = PLATFORM_LABEL[post.platform];
-      if (!window.confirm(`Remove this ${label} post from your Calendar? It stays scheduled on ${label} until you delete it there.`)) return;
+      if (!window.confirm(`Remove this ${label} post from Schedule? It stays scheduled on ${label} until you delete it there.`)) return;
     }
     setBusy({ id: post.id, action });
     setCardErrors((current) => {
@@ -291,7 +291,7 @@ export function PlanView({ initialDay }: { initialDay?: DayKey } = {}) {
   if (!loaded) {
     return (
       <div className="space-y-6">
-        <h1 className="text-lg font-bold tracking-tight">Calendar</h1>
+        <h1 className="text-lg font-bold tracking-tight">Schedule</h1>
         {loadError
           ? <p className="text-sm text-danger">{loadError}</p>
           : <p className="text-sm text-text-dim">Loading…</p>}
@@ -312,7 +312,7 @@ export function PlanView({ initialDay }: { initialDay?: DayKey } = {}) {
       {editingTimes && <PostingTimes slots={defaultSlots} onSaved={setDefaultSlots} onClose={() => setEditingTimes(false)} />}
       <header className="space-y-1">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <h1 className="text-lg font-bold tracking-tight">Calendar</h1>
+          <h1 className="text-lg font-bold tracking-tight">Schedule</h1>
           <span className="text-sm text-text-dim">{monthLabel(month)}</span>
           <DayNav
             onPrev={() => showDay(day, -1)}

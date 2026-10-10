@@ -23,7 +23,7 @@ describe("the Archive, Write's and Calendar's alike (2026-09-27)", () => {
 
   it("in Calendar, See in Calendar shows the day there instead of following the link", () => {
     const html = renderToStaticMarkup(createElement(ArchiveList, { posts: [post], now: "2026-09-27T10:00:00.000Z", onSeeDay: () => {} }));
-    expect(html).toContain('<button type="button" class="ml-auto text-xs text-text-dim underline hover:text-text">See in Calendar</button>');
+    expect(html).toContain('<button type="button" class="ml-auto text-xs text-text-dim underline hover:text-text">See in Schedule</button>');
     expect(html).not.toContain('href="/calendar');
   });
 

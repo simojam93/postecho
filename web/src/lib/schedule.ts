@@ -550,7 +550,7 @@ export async function updateSchedule(
   }
   if (!updated) {
     await dropNewTimer();
-    return { ok: false, code: "not_editable", error: "this post changed meanwhile — reload the Calendar" };
+    return { ok: false, code: "not_editable", error: "this post changed meanwhile — reload Schedule" };
   }
   if (retime && row.externalId && row.externalId !== messageId) await forgetMessage(qstash, row.externalId);
   return { ok: true, post: updated };
@@ -580,7 +580,7 @@ async function updatePlatformSchedule(
     .set({ publishAt: at, publishedAt: at, text: nextText })
     .where(and(eq(scheduledPosts.id, row.id), eq(scheduledPosts.status, "posted_manually")))
     .returning();
-  if (!updated) return { ok: false, code: "not_editable", error: "this post changed meanwhile — reload the Calendar" };
+  if (!updated) return { ok: false, code: "not_editable", error: "this post changed meanwhile — reload Schedule" };
   return { ok: true, post: updated };
 }
 

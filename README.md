@@ -40,10 +40,11 @@ Pick one and ask for changes, such as a shorter version or a LinkedIn post.
 
 ![Three sample drafts and the editor](docs/media/write.png)
 
-**Calendar.** Open X or LinkedIn to schedule a post, then record its time in postecho.
+**Schedule.** Mark finished posts Ready in Compose. Schedule lines them up at your next posting times and opens
+X and LinkedIn for each in turn, already filled in. You set the time there and record it in postecho.
 If you change that time on the platform, update postecho too.
 
-![Calendar populated with fictional sample posts](docs/media/calendar.png)
+![Schedule populated with fictional sample posts](docs/media/calendar.png)
 
 ## What makes it different
 

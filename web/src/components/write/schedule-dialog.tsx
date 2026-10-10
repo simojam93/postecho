@@ -184,7 +184,7 @@ export function ScheduleDialog({ draftId, targets, openedFirst, now, flush, onSc
           <div className="min-w-0 space-y-1">
             <h2 id={titleId} className="text-base font-semibold">Schedule</h2>
             <p className="text-xs text-text-dim">
-              Schedule it with {rows.length > 1 ? "each platform's" : `${names}'s`} own scheduler, then tell PostEcho the time. Your Calendar shows it by date. No emails.
+              Schedule it with {rows.length > 1 ? "each platform's" : `${names}'s`} own scheduler, then tell PostEcho the time. Schedule shows it by date. No emails.
             </p>
           </div>
           <button type="button" onClick={requestClose} disabled={busy} aria-label="Close"
@@ -256,7 +256,7 @@ export function ScheduleDialog({ draftId, targets, openedFirst, now, flush, onSc
 
         <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border pt-4">
           {rows.some((row) => row.done) && (
-            <Link href="/calendar" className="text-sm text-text-dim underline hover:text-text">See it in Calendar</Link>
+            <Link href="/calendar" className="text-sm text-text-dim underline hover:text-text">See it in Schedule</Link>
           )}
           <button type="button" onClick={requestClose} disabled={busy} className={allDone ? primaryPillCls : pillCls}>
             {allDone ? "Done" : "Close"}

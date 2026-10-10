@@ -62,8 +62,8 @@ export function ArchiveList({ posts, now, onSeeDay }: { posts: ArchivedPost[]; n
               {post.xText && <CopyText label="X" text={post.xText} />}
               {post.linkedinText && <CopyText label="LinkedIn" text={post.linkedinText} />}
               {day && (onSeeDay
-                ? <button type="button" onClick={() => onSeeDay(day)} className={seeCls}>See in Calendar</button>
-                : <Link href={`/calendar?day=${day}`} className={seeCls}>See in Calendar</Link>)}
+                ? <button type="button" onClick={() => onSeeDay(day)} className={seeCls}>See in Schedule</button>
+                : <Link href={`/calendar?day=${day}`} className={seeCls}>See in Schedule</Link>)}
             </div>
           </li>
         );

@@ -14,8 +14,9 @@ const tabs: Array<{ href: string; label: string; tip: string; work?: WorkTab }> 
   // messo qui"): a text pasted in Write gets its human score at once, and
   // its Humanize loop lives in jev-judge.
   { href: "/create", label: "Compose", tip: "Turn ideas into posts, then schedule them", work: "write" },
-  // Calendar, named Plan until 2026-09-27 ("più che plan la chiamerei calendar").
-  { href: "/calendar", label: "Calendar", tip: "Your posts by date" },
+  // Schedule, named Plan until 2026-09-27 and Calendar until 2026-10-10, when ready posts started lining
+  // up there to be scheduled in a row. The route stays /calendar.
+  { href: "/calendar", label: "Schedule", tip: "Your posts by date" },
   // Settings: the cog at the foot of the sidebar opens them as a window, and
   // Sign out lives at their bottom left (2026-09-27).
 ];

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { SetupStatus } from "@/lib/setup";
-import { CalendarStep, ConnectStep, initialTopic, IntroStep, SearchStep, STARTER_TOPIC, topicOf, welcomeSteps, WriteStep } from "./welcome";
+import { ConnectStep, initialTopic, IntroStep, SearchStep, STARTER_TOPIC, ScheduleStep, topicOf, welcomeSteps, WriteStep } from "./welcome";
 
 function status(over: Partial<SetupStatus> = {}): SetupStatus {
   return {
@@ -40,15 +40,18 @@ describe("the welcome, redone (2026-09-27: \"l'onboarding a te sembra chiaro? mm
     const write = renderToStaticMarkup(createElement(WriteStep, { titleId: "t" }));
     expect(write).toContain("Compose: pick a take, make it yours");
     expect(write).toContain(">Picked</p>");
-    const calendar = renderToStaticMarkup(createElement(CalendarStep, { titleId: "t" }));
-    expect(calendar).toContain("Calendar: your posts by date");
+    // Calendar is Schedule since 2026-10-10 (schedule in a row): ready posts line up there.
+    const calendar = renderToStaticMarkup(createElement(ScheduleStep, { titleId: "t" }));
+    expect(calendar).toContain("Schedule: your posts by date");
+    expect(calendar).not.toContain("Calendar");
     expect(calendar).toContain("How did it do?");
   });
 
   it("says what PostEcho does, and draws the loop", () => {
     const html = renderToStaticMarkup(createElement(IntroStep, { titleId: "t" }));
     expect(html).toContain("Turn what you read into your next post");
-    for (const part of ["Find Ideas", "Compose", "Calendar", "Your posts by date"]) expect(html).toContain(part);
+    for (const part of ["Find Ideas", "Compose", "Schedule", "Your posts by date"]) expect(html).toContain(part);
+    expect(html).not.toContain("Calendar");
   });
 
   it("Connect: Claude and Jev in plain words, the optional sources folded away", () => {

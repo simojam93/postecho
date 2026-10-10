@@ -68,7 +68,7 @@ The prompt asks it not to borrow the speaker's personal experiences. I still nee
 
 Once I mark a draft as scheduled, it moves to the Archive. Compose stays focused on unfinished work.
 
-The same Archive is available from Compose and Calendar, so I can get back to the draft from either place.
+The same Archive is available from Compose and Schedule, so I can get back to the draft from either place.
 
 ## 6. Rewriting has one main input
 

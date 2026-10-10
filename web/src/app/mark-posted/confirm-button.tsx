@@ -37,7 +37,7 @@ export function ConfirmButton({ id, sig }: { id: string; sig: string }) {
   return (
     <>
       <h1 className="text-2xl font-semibold tracking-tight">Did you post it?</h1>
-      <p className="text-sm text-text-dim">Confirm and PostEcho records it in your Calendar and stops the reminder.</p>
+      <p className="text-sm text-text-dim">Confirm and PostEcho records it in Schedule and stops the reminder.</p>
       <button
         type="button"
         onClick={confirm}

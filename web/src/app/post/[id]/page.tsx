@@ -75,9 +75,9 @@ export default async function PostPage({
       </div>
 
       {done ? (
-        <p className="text-sm text-text-dim">This post is in your Calendar. You can close this tab.</p>
+        <p className="text-sm text-text-dim">This post is in Schedule. You can close this tab.</p>
       ) : canceled ? (
-        <p className="text-sm text-text-dim">This post was canceled in your Calendar, so there is nothing to share here.</p>
+        <p className="text-sm text-text-dim">This post was canceled in Schedule, so there is nothing to share here.</p>
       ) : (
         <ShareActions id={id} sig={sig} platform={post.platform} text={post.text} />
       )}

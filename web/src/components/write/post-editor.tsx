@@ -443,9 +443,9 @@ export function PostEditor({ draft, chain, voice, tab, onTab, onMutated, onRefin
         >
           Discard
         </button>
-        {/* Where it's scheduled, as a quiet pill by Schedule (2026-09-27): a click opens Calendar. */}
+        {/* Where it's scheduled, as a quiet pill by Schedule (2026-09-27): a click opens Schedule. */}
         {scheduledOn.length > 0 && (
-          <Link href="/calendar" role="status" data-tip="See it in Calendar"
+          <Link href="/calendar" role="status" data-tip="See it in Schedule"
             className="ml-auto rounded-full bg-ok/10 px-3 py-1 text-xs text-ok hover:bg-ok/20">
             ✓ {scheduledOn.map((entry) => `${PLATFORM_LABEL[entry.platform]} · ${formatRomeSlot(entry.publishAt, entry.at)}`).join(", ")}
           </Link>
@@ -536,7 +536,7 @@ export function PostEditor({ draft, chain, voice, tab, onTab, onMutated, onRefin
           {markedPosted.length > 0 && (
             <p role="status" className="text-sm text-ok">
               Marked as posted: {markedPosted.map((platform) => PLATFORM_LABEL[platform]).join(", ")} ·{" "}
-              <Link href="/calendar" className="underline hover:text-text">See in Calendar</Link>
+              <Link href="/calendar" className="underline hover:text-text">See in Schedule</Link>
             </p>
           )}
           {markError && <p className="text-sm text-danger">{markError}</p>}

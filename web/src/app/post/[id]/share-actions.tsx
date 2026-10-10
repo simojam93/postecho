@@ -148,7 +148,7 @@ export function ShareActions({ id, sig, platform, text }: { id: string; sig: str
     return (
       <div className="space-y-1 text-center">
         <p className="text-lg font-semibold tracking-tight">Marked as posted ✓</p>
-        <p className="text-sm text-text-dim">Recorded in your Calendar. You can close this tab.</p>
+        <p className="text-sm text-text-dim">Recorded in Schedule. You can close this tab.</p>
       </div>
     );
   }

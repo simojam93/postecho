@@ -504,7 +504,7 @@ export function SettingsPanel({ mode, initialTab = "profile", onClose, onStylePr
           <>
             <Group
               title="What to show you first"
-              hint="Drag to reorder. PostEcho also learns from what you like, dismiss and rate in Calendar."
+              hint="Drag to reorder. PostEcho also learns from what you like, dismiss and rate in Schedule."
             >
               <FindOrderList order={settings.findOrder} counts={kindCounts} onChange={(next) => set("findOrder", next)} />
             </Group>
