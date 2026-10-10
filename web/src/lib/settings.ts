@@ -45,6 +45,10 @@ export const SETTING_DEFAULTS = {
   // capped at 4000 chars in the settings PUT whitelist (see api/settings/route.ts).
   imageSpecs: "" as string,
   agentLastHeartbeatAt: null as string | null,
+  // The job kinds the agent's last heartbeat said it serves (posts from a repo, 2026-10-10): a route
+  // that queues a newer kind checks it first (lib/agent-kinds.ts), so an agent too old for the job
+  // gets "update the agent" instead of a job that waits forever. null: no heartbeat has listed them.
+  agentKinds: null as string[] | null,
   // The owner's library (2026-09-24), each with its own route (lib/library.ts):
   // posts by others whose style to learn from, and reference material Claude
   // may draw facts from. Not part of GET /api/settings — they can be large.
