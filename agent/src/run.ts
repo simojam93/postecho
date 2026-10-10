@@ -1,5 +1,5 @@
 import { createWakeController, type WakeController } from "./wake.js";
-import { startWakeServer } from "./wake-server.js";
+import { startWakeServer, type MediaRoutes } from "./wake-server.js";
 import { runPollLoop, type Logger, type Worker } from "./worker.js";
 
 /** What runAgentLoop needs from a listening server. */
@@ -18,10 +18,13 @@ export type RunAgentLoopOptions = {
   isStopping: () => boolean;
   /** Resolves when SIGINT/SIGTERM arrives. */
   stopped: Promise<void>;
+  /** The post media the wake server serves (media from a repo, 2026-10-11). */
+  media?: MediaRoutes;
   startServer?: (opts: {
     port: number;
     origin: string;
     controller: Pick<WakeController, "awake" | "wake" | "status">;
+    media?: MediaRoutes;
     logger?: Logger;
   }) => Promise<ClosableServer | null>;
   sleep?: (ms: number) => Promise<void>;
@@ -53,7 +56,9 @@ export async function runAgentLoop(opts: RunAgentLoopOptions): Promise<"wake" | 
     logger,
   });
   const startServer = opts.startServer ?? startWakeServer;
-  const server = await startServer({ port: opts.wakePort, origin: opts.origin, controller, logger });
+  const server = await startServer({
+    port: opts.wakePort, origin: opts.origin, controller, logger, ...(opts.media ? { media: opts.media } : {}),
+  });
   if (!server) return poll();
 
   controller.start();

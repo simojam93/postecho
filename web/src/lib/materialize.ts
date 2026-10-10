@@ -2,6 +2,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { drafts, ideas } from "@/db/schema";
 import { getSetting, setSetting } from "@/lib/settings";
+import { mediaOf, type MediaItem } from "@/lib/media";
 import { keptTakes } from "@/lib/takes";
 import { VIDEO_POST_FORMAT } from "@/lib/video-post";
 import { rankVideoPosts } from "@/lib/video-posts";
@@ -443,6 +444,45 @@ async function materializeRepoPosts(db: typeof Db, job: MaterializeJob, result: 
 }
 
 /**
+ * post_media (media from a repo, 2026-10-11): the agent's `{ items: [{ file, kind, caption? }] }`, the
+ * files it made in ~/.postecho/media/<draftId>/. Each name is a plain file name, as the agent's wake
+ * server will serve it (agent/src/media/paths.ts).
+ */
+const PostMediaResult = z.object({
+  items: z.array(z.object({
+    file: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/).refine((file) => !file.includes("..")),
+    kind: z.enum(["image", "card", "screenshot", "video"]),
+    caption: z.string().max(300).optional(),
+  })).max(12),
+});
+
+/**
+ * The items join the draft's `meta.media`, not kept yet (Compose's Keep keeps them), each with the
+ * job's id; only the `media` key of meta is written, so a slop check landing meanwhile stays. Once
+ * per job. A draft removed meanwhile has nothing to hang them on.
+ */
+async function materializePostMedia(db: typeof Db, job: MaterializeJob, result: unknown): Promise<MaterializeOutcome> {
+  const parsed = PostMediaResult.safeParse(result);
+  if (!parsed.success) return { ok: false, error: INVALID_SHAPE_ERROR };
+  const draftId = typeof job.payload.draftId === "string" && z.uuid().safeParse(job.payload.draftId).success ? job.payload.draftId : null;
+  const [draft] = draftId ? await db.select().from(drafts).where(eq(drafts.id, draftId)).limit(1) : [];
+  if (!draft) return { ok: true };
+  const current = mediaOf(draft.meta);
+  if (current.some((item) => item.jobId === job.id)) return { ok: true };
+  const added: MediaItem[] = parsed.data.items.map((item) => ({
+    file: item.file,
+    kind: item.kind,
+    ...(item.caption ? { caption: item.caption } : {}),
+    kept: false,
+    jobId: job.id,
+  }));
+  await db.update(drafts)
+    .set({ meta: sql`jsonb_set(${drafts.meta}, '{media}', ${JSON.stringify([...current, ...added])}::jsonb)` })
+    .where(eq(drafts.id, draft.id));
+  return { ok: true };
+}
+
+/**
  * Turns an agent's job result into durable state — drafts and settings —
  * before the result route flips the job to `done` (see jobs/[id]/result/
  * route.ts). Each kind validates `result`'s shape itself (via zod) rather
@@ -476,6 +516,8 @@ export async function materialize(
       return materializeStyleProposal(db, job, result);
     case "repo_posts":
       return materializeRepoPosts(db, job, result);
+    case "post_media":
+      return materializePostMedia(db, job, result);
     // pick_folder: its result ({ path } or { cancelled }) stays on the job, which the page reads.
     default:
       return { ok: true };

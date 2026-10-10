@@ -80,6 +80,10 @@ export const jobKind = pgEnum("job_kind", [
   // repo on the owner's computer and write posts from it; "pick_folder" opens the computer's folder
   // picker and sends back the path. Appended, same rule as above.
   "repo_posts", "pick_folder",
+  // Media from a repo (2026-10-11): "post_media" makes one post's images, card, screenshots or video
+  // on the owner's computer (agent/src/media/post-media.ts); materialize.ts lists them in the draft's
+  // meta.media. Appended, same rule as above.
+  "post_media",
 ]);
 export const jobStatus = pgEnum("job_status", ["queued", "claimed", "done", "failed"]);
 

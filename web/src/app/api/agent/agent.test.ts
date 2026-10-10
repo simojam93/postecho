@@ -122,6 +122,27 @@ describe("claim", () => {
     expect(res.status).toBe(200);
   });
 
+  it("hands out a post_media job (media from a repo, 2026-10-11)", async () => {
+    await state.db!.insert(jobs).values({ kind: "post_media", payload: { draftId: "d", kind: "card" } });
+    const res = await GET(claimReq("post_media"));
+    expect(res.status).toBe(200);
+    expect((await res.json()).job).toMatchObject({ kind: "post_media", payload: { kind: "card" } });
+  });
+
+  it("waits 45 minutes, not 10, before re-queueing screenshots and videos (media from a repo, 2026-10-11)", async () => {
+    const ago = (min: number) => new Date(Date.now() - min * 60 * 1000);
+    const [shots] = await state.db!.insert(jobs).values({ kind: "post_media", payload: { kind: "screenshots" }, status: "claimed", claimedAt: ago(20) }).returning();
+    const [card] = await state.db!.insert(jobs).values({ kind: "post_media", payload: { kind: "card" }, status: "claimed", claimedAt: ago(20) }).returning();
+    const [video] = await state.db!.insert(jobs).values({ kind: "post_media", payload: { kind: "video" }, status: "claimed", claimedAt: ago(50) }).returning();
+    const [post] = await state.db!.insert(jobs).values({ kind: "repo_posts", payload: { kind: "video" }, status: "claimed", claimedAt: ago(20) }).returning();
+    await GET(claimReq("scout"));
+    const statusOf = async (id: string) => (await state.db!.select().from(jobs).where(eq(jobs.id, id)))[0]!.status;
+    expect(await statusOf(shots.id)).toBe("claimed");
+    expect(await statusOf(card.id)).toBe("queued");
+    expect(await statusOf(video.id)).toBe("queued");
+    expect(await statusOf(post.id)).toBe("queued");
+  });
+
   it("does not re-queue fresh claimed jobs", async () => {
     await state.db!.insert(jobs).values({ kind: "generate_from_video", payload: {}, status: "claimed", claimedAt: new Date() });
     expect((await GET(claimReq())).status).toBe(204);

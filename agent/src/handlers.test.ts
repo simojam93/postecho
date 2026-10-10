@@ -91,11 +91,11 @@ function fakeRunClaudeJson(fixture: unknown) {
 }
 
 describe("HANDLERS / SERVED_KINDS", () => {
-  it("serves exactly the nine agent kinds", () => {
+  it("serves exactly the ten agent kinds", () => {
     expect(SERVED_KINDS.sort()).toEqual(
       [
         "analyze_style", "generate_from_idea", "generate_from_video", "image_prompt", "learn_style", "pick_folder",
-        "repo_posts", "revise_draft", "video_ideas",
+        "post_media", "repo_posts", "revise_draft", "video_ideas",
       ].sort(),
     );
     for (const kind of SERVED_KINDS) expect(typeof HANDLERS[kind]).toBe("function");

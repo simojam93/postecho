@@ -7,11 +7,17 @@ cost). See `docs/plans/2026-09-21-m2-agent-generation.md` (Part B)
 and spec §2.2 for the full design.
 
 Kinds served: `generate_from_video`, `generate_from_idea`, `revise_draft`,
-`image_prompt`, `analyze_style`, `video_ideas`, `learn_style`, `repo_posts`, `pick_folder`.
+`image_prompt`, `analyze_style`, `video_ideas`, `learn_style`, `repo_posts`, `pick_folder`, `post_media`.
 
 `repo_posts` runs Claude Code inside a folder, or a shallow clone of a public GitHub repository kept in
 `~/.postecho/repos/`, with only `Read`, `Glob` and `Grep` allowed and the repository's own Claude settings
 ignored. `pick_folder` opens the macOS folder picker on this computer.
+
+`post_media` makes one post's media in `~/.postecho/media/<draftId>/`: images already in the repository and
+cards for any source; screenshots and a brag-slim video only for a folder on this computer, since they run
+the project's code (Claude Code gets `Bash` and `Write` for them, and up to 40 minutes). Cards are drawn with
+the system Google Chrome. The wake server serves those files to the page (`GET` and `DELETE
+/media/<draftId>/<file>`, `POST /media/reveal` to show one in Finder); nothing is uploaded.
 
 ## Setup
 

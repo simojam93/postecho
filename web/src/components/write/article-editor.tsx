@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { YOUR_POST_ID } from "./post-editor";
+import { PostMedia } from "./post-media";
 import type { Draft } from "./types";
 
 /** Where X writes articles: no app can post or schedule one there, so the owner pastes it in. */
@@ -93,6 +94,8 @@ export function ArticleEditor({ draft, onMutated }: {
           {saveError ?? "Unsaved — saves when you click away"}
         </p>
       )}
+
+      {draft.idea?.kind === "repo_post" && <PostMedia draftId={draft.id} />}
 
       <div className="flex flex-wrap items-center gap-2 pt-2">
         <button type="button" onClick={() => void discard()} disabled={busy}

@@ -111,3 +111,26 @@ describe("Schedule all's window", () => {
     expect(html).not.toContain(">Stop</button>");
   });
 });
+
+describe("a post's media in Schedule all (media from a repo, 2026-10-11)", () => {
+  const DRAFT = "6f1c2a3e-1b2c-4d5e-8f90-123456789abc";
+  const withMedia: SequencePost = {
+    draftId: DRAFT, xText: "With a card", linkedinText: "And on LinkedIn", platforms: ["x", "linkedin"], time: null,
+    media: [{ file: "card-a.png", kind: "card" }, { file: "video-a.mp4", kind: "video" }],
+  };
+
+  it("each of the post's steps carries its media; a post without any carries none", () => {
+    const state = startSequence([withMedia, xOnly]);
+    expect(state.steps.map((s) => s.media.length)).toEqual([2, 2, 0]);
+  });
+
+  it("shows them next to Open X, each with Show in Finder, to drag into the composer", () => {
+    const html = render([withMedia]);
+    expect(html).toContain('aria-label="Media for this post"');
+    expect(html).toContain(`src="http://127.0.0.1:47321/media/${DRAFT}/card-a.png"`);
+    expect(html).toMatch(/<video[^>]*src="http:\/\/127\.0\.0\.1:47321\/media\/[^"]+\/video-a\.mp4"/);
+    expect(html.match(/>Show in Finder</g)).toHaveLength(2);
+    expect(html.indexOf("Media for this post")).toBeGreaterThan(html.indexOf(">Open X ↗<"));
+    expect(render([xOnly])).not.toContain("Media for this post");
+  });
+});

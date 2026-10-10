@@ -556,3 +556,44 @@ describe("materialize — repo_posts (posts from a repo, 2026-10-10)", () => {
     expect(await posts(db)).toHaveLength(0);
   });
 });
+
+describe("materialize — post_media (media from a repo, 2026-10-11)", () => {
+  const JOB = "00000000-0000-4000-8000-000000000031";
+  const mediaJob = (draftId: string, id = JOB): MaterializeJob => ({ id, kind: "post_media", payload: { draftId, kind: "card" } });
+
+  it("adds the items to the draft's meta.media, not kept yet, and leaves the rest of meta alone", async () => {
+    const db = await createTestDb();
+    const [draft] = await db.insert(drafts).values({
+      xText: "a post", meta: { slop: { slopScore: 12 }, media: [{ file: "image-a-1.png", kind: "image", kept: true, jobId: "older" }] },
+    }).returning();
+    const outcome = await materialize(db as never, mediaJob(draft.id), {
+      items: [{ file: "card-b.png", kind: "card" }, { file: "image-b-1.png", kind: "image", caption: "The gate" }],
+    });
+    expect(outcome).toEqual({ ok: true });
+    const [row] = await db.select().from(drafts).where(eq(drafts.id, draft.id));
+    expect(row.meta.slop).toEqual({ slopScore: 12 });
+    expect(row.meta.media).toEqual([
+      { file: "image-a-1.png", kind: "image", kept: true, jobId: "older" },
+      { file: "card-b.png", kind: "card", kept: false, jobId: JOB },
+      { file: "image-b-1.png", kind: "image", caption: "The gate", kept: false, jobId: JOB },
+    ]);
+    // The same result again (a retried post) adds nothing.
+    await materialize(db as never, mediaJob(draft.id), { items: [{ file: "card-c.png", kind: "card" }] });
+    const [again] = await db.select().from(drafts).where(eq(drafts.id, draft.id));
+    expect(again.meta.media).toHaveLength(3);
+  });
+
+  it("refuses a result that isn't one: a path for a name, an unknown kind", async () => {
+    const db = await createTestDb();
+    const [draft] = await db.insert(drafts).values({ xText: "a post" }).returning();
+    for (const items of [[{ file: "../x.png", kind: "card" }], [{ file: "a/b.png", kind: "card" }], [{ file: "x.png", kind: "gif" }]]) {
+      expect(await materialize(db as never, mediaJob(draft.id), { items })).toEqual({ ok: false, error: "invalid result for kind" });
+    }
+  });
+
+  it("does nothing when the draft is gone", async () => {
+    const db = await createTestDb();
+    expect(await materialize(db as never, mediaJob("00000000-0000-4000-8000-0000000000ff"), { items: [{ file: "card-a.png", kind: "card" }] }))
+      .toEqual({ ok: true });
+  });
+});

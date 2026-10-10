@@ -1,6 +1,38 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Job, JobOutcome } from "./postecho.js";
-import { createWorker, runPollLoop, type WorkerClient } from "./worker.js";
+import { createWorker, jobBudgetMs, runPollLoop, type WorkerClient } from "./worker.js";
+
+describe("a budget per job (media from a repo, 2026-10-11)", () => {
+  const media = (kind: string): Job => ({ ...job("m", "post_media"), payload: { kind } });
+
+  it("gives screenshots and videos 40 minutes, everything else 9", () => {
+    expect(jobBudgetMs(media("screenshots"))).toBe(40 * 60_000);
+    expect(jobBudgetMs(media("video"))).toBe(40 * 60_000);
+    expect(jobBudgetMs(media("card"))).toBe(9 * 60_000);
+    expect(jobBudgetMs(media("images"))).toBe(9 * 60_000);
+    expect(jobBudgetMs(job("a", "repo_posts"))).toBe(9 * 60_000);
+    expect(jobBudgetMs({ ...job("a", "repo_posts"), payload: { kind: "video" } })).toBe(9 * 60_000);
+  });
+
+  it("hands a long job's Claude calls its deadline and the time left as their own", async () => {
+    const seen: Array<Record<string, unknown>> = [];
+    const client = fakeClient([media("video"), media("card")]);
+    const runner = fakeRunner();
+    runner.runClaudeJson.mockImplementation(async (o: Record<string, unknown>) => { seen.push(o); return {}; });
+    const worker = createWorker({
+      client, runner, kinds: ["post_media"], pollWaitSeconds: 0, logger: quiet,
+      deps: { getProfile: vi.fn(), runClaudeJson: vi.fn() } as never,
+      runHandler: async (_job, deps) => { await deps.runClaudeJson({ prompt: "p", system: "s", schema: {}, parse: (x) => x }); return { ok: true, result: {} }; },
+    });
+    const before = Date.now();
+    await worker.drain(() => false);
+    const [video, card] = seen;
+    expect(video!.deadline as number).toBeGreaterThanOrEqual(before + 40 * 60_000);
+    expect(video!.timeoutMs as number).toBeGreaterThan(39 * 60_000);
+    expect(card!.deadline as number).toBeLessThan(before + 10 * 60_000);
+    expect(card!.timeoutMs).toBeUndefined();
+  });
+});
 
 function job(id: string, kind = "generate_from_idea"): Job {
   return { id, kind, payload: {}, createdAt: "2026-10-10T10:00:00.000Z", claimedAt: `claimed-${id}` };

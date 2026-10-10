@@ -185,6 +185,40 @@ describe("PATCH /api/drafts/:id", () => {
     );
     expect(res.status).toBe(400);
   });
+
+  it("keeps and removes media: the list the page wants, the rest of meta untouched (media from a repo, 2026-10-11)", async () => {
+    const [draft] = await state.db!.insert(drafts).values({
+      xText: "a post",
+      meta: {
+        slop: { slopScore: 9 },
+        media: [
+          { file: "card-a.png", kind: "card", kept: false, jobId: "j1" },
+          { file: "image-a-1.png", kind: "image", caption: "The gate", kept: false, jobId: "j1" },
+          { file: "image-a-2.png", kind: "image", kept: true, jobId: "j1" },
+        ],
+      },
+    }).returning();
+    const params = { params: Promise.resolve({ id: draft.id }) };
+    const res = await PATCH(jsonReq("http://test/api/drafts/x", "PATCH", {
+      media: [{ file: "image-a-1.png", kept: true }, { file: "card-a.png", kept: false }, { file: "made-up.png", kept: true }],
+    }), params);
+    expect(res.status).toBe(200);
+    const [row] = await state.db!.select().from(drafts).where(eq(drafts.id, draft.id));
+    expect(row.meta.slop).toEqual({ slopScore: 9 });
+    // In the draft's own order; image-a-2 was left out, so it's removed; the made-up name is ignored.
+    expect(row.meta.media).toEqual([
+      { file: "card-a.png", kind: "card", kept: false, jobId: "j1" },
+      { file: "image-a-1.png", kind: "image", caption: "The gate", kept: true, jobId: "j1" },
+    ]);
+    expect((await res.json()).draft.meta.media).toHaveLength(2);
+  });
+
+  it("400s for a media list that isn't one", async () => {
+    const [draft] = await state.db!.insert(drafts).values({ xText: "a post" }).returning();
+    const params = { params: Promise.resolve({ id: draft.id }) };
+    expect((await PATCH(jsonReq("http://test/api/drafts/x", "PATCH", { media: [{ file: "a.png" }] }), params)).status).toBe(400);
+    expect((await PATCH(jsonReq("http://test/api/drafts/x", "PATCH", { media: "a.png" }), params)).status).toBe(400);
+  });
 });
 
 describe("POST /api/drafts/from-idea", () => {
@@ -556,9 +590,22 @@ describe("ready to schedule (schedule in a row, 2026-10-10)", () => {
     expect(res.status).toBe(200);
     const { posts } = await res.json();
     expect(posts).toEqual([
-      { draftId: first.id, ideaId: null, xText: "First", linkedinText: null, platforms: ["x"], readyAt: "2026-10-10T09:00:00.000Z" },
-      { draftId: second.id, ideaId: idea.id, xText: "Second", linkedinText: "Second on LinkedIn", platforms: ["linkedin"], readyAt: "2026-10-10T10:00:00.000Z" },
+      { draftId: first.id, ideaId: null, xText: "First", linkedinText: null, platforms: ["x"], readyAt: "2026-10-10T09:00:00.000Z", media: [] },
+      { draftId: second.id, ideaId: idea.id, xText: "Second", linkedinText: "Second on LinkedIn", platforms: ["linkedin"], readyAt: "2026-10-10T10:00:00.000Z", media: [] },
     ]);
+  });
+
+  it("a ready post carries its kept media, not the others (media from a repo, 2026-10-11)", async () => {
+    await state.db!.insert(drafts).values({
+      xText: "With media", status: "kept", readyAt: new Date(),
+      meta: { media: [
+        { file: "card-a.png", kind: "card", kept: true, jobId: "j" },
+        { file: "image-a-1.png", kind: "image", kept: false, jobId: "j" },
+        { file: "video-a.mp4", kind: "video", kept: true, jobId: "j" },
+      ] },
+    });
+    const { posts } = await (await getReady()).json();
+    expect(posts[0].media).toEqual([{ file: "card-a.png", kind: "card" }, { file: "video-a.mp4", kind: "video" }]);
   });
 
   it("GET /api/drafts/ready 401s when the session is denied", async () => {
