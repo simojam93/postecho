@@ -34,6 +34,10 @@ describe("the sidebar's work marks (2026-09-27: \"un charging che poi diventa un
     expect(TAB_OF_KIND.repo_posts).toBe("find");
   });
 
+  it("a post's media work on Compose (2026-10-11)", () => {
+    expect(TAB_OF_KIND.post_media).toBe("write");
+  });
+
   it("stays working while another job on the tab still runs; a job never seen running shows nothing", () => {
     applyJobs([{ id: "a", kind: "generate_from_idea", status: "claimed" }, { id: "b", kind: "revise_draft", status: "queued" }]);
     applyJobs([{ id: "a", kind: "generate_from_idea", status: "done" }, { id: "b", kind: "revise_draft", status: "claimed" }]);

@@ -6,6 +6,7 @@ import { SlopBadge, type SlopResult } from "@/components/slop-badge";
 import { composerUrl as linkedinComposerUrl } from "@/lib/publishers/linkedin";
 import type { Voice } from "@/lib/voice";
 import { CREATE_LINKEDIN, EditChat, UPDATE_LINKEDIN, useEditRequests, WRITE_X } from "./edit-chat";
+import { PostMedia } from "./post-media";
 import { persistedSlop, PLATFORM_LABEL } from "./post-state";
 import { openComposer, ScheduleDialog, type ScheduleTarget } from "./schedule-dialog";
 import { formatRomeSlot, xIntentUrl } from "./schedule-format";
@@ -437,6 +438,9 @@ export function PostEditor({ draft, chain, voice, tab, onTab, onMutated, onRefin
         chat={chat}
         onRestore={onPickVersion}
       />
+
+      {/* Media from a repo (2026-10-11): images, a card, screenshots or a video, when the owner asks. */}
+      {draft.idea?.kind === "repo_post" && <PostMedia draftId={draft.id} />}
 
       <div className="flex flex-wrap items-center gap-2 pt-2">
         <button

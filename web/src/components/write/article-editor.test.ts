@@ -39,4 +39,12 @@ describe("an X article in Write (posts from a repo, 2026-10-10)", () => {
     expect(html).toContain(">Open X Articles<");
     for (const gone of ['aria-label="X text"', 'aria-label="LinkedIn text"', "Create LinkedIn post", ">Schedule<"]) expect(html).not.toContain(gone);
   });
+
+  it("an article from a repo has Add media (media from a repo, 2026-10-11)", () => {
+    const render = (kind: string) => renderToStaticMarkup(createElement(ArticleEditor, {
+      draft: draft({ articleTitle: "T", articleText: "B", idea: { id: "idea", title: null, url: null, kind } }), onMutated: () => {},
+    }));
+    expect(render("repo_post")).toContain(">Add media</button>");
+    expect(render("note")).not.toContain("Add media");
+  });
 });

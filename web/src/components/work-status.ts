@@ -27,6 +27,7 @@ export const TAB_OF_KIND: Readonly<Record<string, WorkTab>> = {
   generate_from_idea: "write",
   revise_draft: "write",
   image_prompt: "write",
+  post_media: "write",
 };
 
 export const DONE_SHOWN_MS = 1500;
