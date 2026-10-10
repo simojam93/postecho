@@ -1,8 +1,9 @@
-import { and, eq, lt, sql } from "drizzle-orm";
+import { and, eq, inArray, lt, not, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { jobKind, jobs } from "@/db/schema";
 import { requireAgentToken } from "@/lib/agent-auth";
+import { LONG_MEDIA_KINDS, LONG_STALE_CLAIM_MS, STALE_CLAIM_MS } from "@/lib/media";
 
 // The long-poll below can hold the connection open up to MAX_WAIT_SECONDS
 // (25s); make sure the platform doesn't cut the invocation off before that.
@@ -15,7 +16,6 @@ export const maxDuration = 30;
 // the agent never picks up a job of any kind.
 const JobKind = z.enum(jobKind.enumValues);
 
-const STALE_CLAIM_MS = 10 * 60 * 1000;
 const MAX_WAIT_SECONDS = 25;
 const POLL_INTERVAL_MS = 2000;
 
@@ -27,12 +27,27 @@ type ClaimedRow = { id: string; kind: string; payload: Record<string, unknown>; 
  * `claimed` after 10 minutes is put back in the queue. This only touches
  * `status = 'claimed'` rows older than the cutoff — fresh claims and
  * anything already `done`/`failed` are left alone.
+ *
+ * Screenshots and videos of a post (media from a repo, 2026-10-11) run for up
+ * to 40 minutes on the agent, so a post_media job of those kinds waits 45
+ * (lib/media.ts); every other job keeps the 10.
  */
 async function requeueStaleClaims(): Promise<void> {
+  const now = Date.now();
+  const longMedia = and(
+    eq(jobs.kind, "post_media"),
+    inArray(sql`${jobs.payload}->>'kind'`, LONG_MEDIA_KINDS),
+  );
   await db
     .update(jobs)
     .set({ status: "queued", claimedAt: null })
-    .where(and(eq(jobs.status, "claimed"), lt(jobs.claimedAt, new Date(Date.now() - STALE_CLAIM_MS))));
+    .where(and(
+      eq(jobs.status, "claimed"),
+      or(
+        lt(jobs.claimedAt, new Date(now - LONG_STALE_CLAIM_MS)),
+        and(lt(jobs.claimedAt, new Date(now - STALE_CLAIM_MS)), not(longMedia!)),
+      ),
+    ));
 }
 
 /**
