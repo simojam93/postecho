@@ -122,6 +122,13 @@ describe("claim", () => {
     expect(res.status).toBe(200);
   });
 
+  it("hands out a post_media job (media from a repo, 2026-10-11)", async () => {
+    await state.db!.insert(jobs).values({ kind: "post_media", payload: { draftId: "d", kind: "card" } });
+    const res = await GET(claimReq("post_media"));
+    expect(res.status).toBe(200);
+    expect((await res.json()).job).toMatchObject({ kind: "post_media", payload: { kind: "card" } });
+  });
+
   it("does not re-queue fresh claimed jobs", async () => {
     await state.db!.insert(jobs).values({ kind: "generate_from_video", payload: {}, status: "claimed", claimedAt: new Date() });
     expect((await GET(claimReq())).status).toBe(204);
