@@ -1,7 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { composerFor, ScheduleDialog } from "./schedule-dialog";
+import { composerFor, recordSchedule, ScheduleDialog } from "./schedule-dialog";
 
 // Static renders (react-dom/server, node env) — createElement since vitest includes *.test.ts only.
 const render = (props: Partial<Parameters<typeof ScheduleDialog>[0]> = {}) => renderToStaticMarkup(createElement(ScheduleDialog, {
@@ -66,5 +66,36 @@ describe("Write's Schedule window (2026-09-24)", () => {
     const html = render({ targets: [{ platform: "x", text: "x".repeat(281) }] });
     expect(html).toContain("The X text is over 280 characters: shorten it first.");
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Open X again ↗<\/button>/);
+  });
+});
+
+describe("recording the time, shared by the window and Schedule all (2026-10-10)", () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it("posts the draft, the platform and the time to mark-posted, and hands back the time recorded", async () => {
+    const fetch = vi.fn(async () => Response.json({ post: { publishAt: "2030-01-01T16:00:00.000Z" } }, { status: 201 }));
+    vi.stubGlobal("fetch", fetch);
+    const result = await recordSchedule({ draftId: "d1", platform: "linkedin", when: "2030-01-01T17:00" });
+    expect(result).toEqual({ ok: true, publishAt: "2030-01-01T16:00:00.000Z" });
+    expect(fetch).toHaveBeenCalledWith("/api/scheduled-posts/mark-posted", expect.objectContaining({ method: "POST" }));
+    const body = JSON.parse((fetch.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
+    expect(body).toEqual({ draftId: "d1", platform: "linkedin", publishAt: new Date("2030-01-01T17:00").toISOString() });
+  });
+
+  it("asks for a time, or a time still ahead, without a request", async () => {
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    expect(await recordSchedule({ draftId: "d1", platform: "x", when: "" })).toEqual({ ok: false, error: "Pick the time you scheduled it for on X." });
+    expect(await recordSchedule({ draftId: "d1", platform: "x", when: "2020-01-01T10:00" })).toEqual({ ok: false, error: "That time has passed: pick the one you scheduled it for." });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("saves an edit first, and records nothing when that fails; a server error comes back as is", async () => {
+    const fetch = vi.fn(async () => Response.json({ error: "this draft has no X text" }, { status: 400 }));
+    vi.stubGlobal("fetch", fetch);
+    expect(await recordSchedule({ draftId: "d1", platform: "x", when: "2030-01-01T17:00", flush: async () => false }))
+      .toEqual({ ok: false, error: "Your edit couldn't be saved, so nothing was recorded." });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(await recordSchedule({ draftId: "d1", platform: "x", when: "2030-01-01T17:00" })).toEqual({ ok: false, error: "this draft has no X text" });
   });
 });

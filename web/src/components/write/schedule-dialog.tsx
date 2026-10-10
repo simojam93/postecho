@@ -56,8 +56,41 @@ export function openComposer(platform: Platform, text: string): void {
   void navigator.clipboard?.writeText(text).catch(() => { /* Copy text is there too */ });
 }
 
+export type RecordResult = { ok: true; publishAt: string } | { ok: false; error: string };
+
+/**
+ * Tells PostEcho the time the owner scheduled a post for on the platform (POST
+ * /api/scheduled-posts/mark-posted with publishAt; lib/schedule.ts's markPostedManually): this window's
+ * Scheduled on X, and Schedule all's Scheduled for (schedule in a row, 2026-10-10). `when` is the
+ * datetime-local value; an empty or past one is refused without a request. `flush` saves an unsaved
+ * edit first. The error is the one to show.
+ */
+export async function recordSchedule({ draftId, platform, when, flush }: {
+  draftId: string;
+  platform: Platform;
+  when: string;
+  flush?: () => Promise<boolean>;
+}): Promise<RecordResult> {
+  const at = fromDatetimeLocal(when);
+  if (!at) return { ok: false, error: `Pick the time you scheduled it for on ${PLATFORM_LABEL[platform]}.` };
+  if (new Date(at).getTime() < Date.now() - PAST_TOLERANCE_MS) return { ok: false, error: "That time has passed: pick the one you scheduled it for." };
+  try {
+    if (flush && !(await flush())) return { ok: false, error: "Your edit couldn't be saved, so nothing was recorded." };
+    const res = await fetch("/api/scheduled-posts/mark-posted", {
+      method: "POST",
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ draftId, platform, publishAt: at }),
+    });
+    const body = await res.json().catch(() => null);
+    if (!res.ok) return { ok: false, error: typeof body?.error === "string" ? body.error : "Couldn't record it. Try again." };
+    return { ok: true, publishAt: typeof body?.post?.publishAt === "string" ? body.post.publishAt : at };
+  } catch {
+    return { ok: false, error: "Network error: nothing was recorded." };
+  }
+}
+
 /** What to do in the composer, once it's open or before (X Help; LinkedIn Help "Schedule posts"). */
-function howTo(platform: Platform, opened: boolean): string {
+export function howTo(platform: Platform, opened: boolean): string {
   if (platform === "x") {
     return `${opened ? "X is open in a new tab with its full composer" : "Opens X's full composer"}. Your text is copied too: paste it if the box is empty, then use the calendar icon to schedule it.`;
   }
@@ -141,35 +174,11 @@ export function ScheduleDialog({ draftId, targets, openedFirst, now, flush, onSc
 
   async function mark(row: Row) {
     if (row.busy) return;
-    const label = PLATFORM_LABEL[row.platform];
-    const at = fromDatetimeLocal(row.when);
-    if (!at) { update(row.platform, { error: `Pick the time you scheduled it for on ${label}.` }); return; }
-    if (new Date(at).getTime() < Date.now() - PAST_TOLERANCE_MS) {
-      update(row.platform, { error: "That time has passed: pick the one you scheduled it for." });
-      return;
-    }
     update(row.platform, { busy: true, error: null });
-    try {
-      if (!(await flush())) {
-        update(row.platform, { busy: false, error: "Your edit couldn't be saved, so nothing was recorded." });
-        return;
-      }
-      const res = await fetch("/api/scheduled-posts/mark-posted", {
-        method: "POST",
-        headers: JSON_HEADERS,
-        body: JSON.stringify({ draftId, platform: row.platform, publishAt: at }),
-      });
-      const body = await res.json().catch(() => null);
-      if (!res.ok) {
-        update(row.platform, { busy: false, error: typeof body?.error === "string" ? body.error : "Couldn't record it. Try again." });
-        return;
-      }
-      const publishAt = typeof body?.post?.publishAt === "string" ? body.post.publishAt : at;
-      update(row.platform, { busy: false, done: publishAt });
-      onScheduled(row.platform, publishAt);
-    } catch {
-      update(row.platform, { busy: false, error: "Network error: nothing was recorded." });
-    }
+    const result = await recordSchedule({ draftId, platform: row.platform, when: row.when, flush });
+    if (!result.ok) { update(row.platform, { busy: false, error: result.error }); return; }
+    update(row.platform, { busy: false, done: result.publishAt });
+    onScheduled(row.platform, result.publishAt);
   }
 
   const busy = rows.some((row) => row.busy);
