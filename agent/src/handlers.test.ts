@@ -343,6 +343,22 @@ describe("handleReviseDraft — a post from a repo (2026-10-10)", () => {
     expect(calls[0]!.prompt).toMatch(/repository/i);
   });
 
+  it("deletes the GitHub clone afterwards unless the repo is pinned (keepClone); never a folder", async () => {
+    const removeClone = vi.fn(async () => {});
+    const deps = (): HandlerDeps => ({
+      getProfile: async () => emptyProfile(), runClaudeJson: fakeRunClaudeJson({ linkedinText: "l".repeat(700) }).fn,
+      resolveRepo: async () => ({ dir: "/repos/a__b", name: "a/b" }), removeClone,
+    });
+    const sync = { draftId: "d1", xText: "the X post", instruction: "Write the LinkedIn version", mode: "sync_linkedin" };
+    const github = { type: "github", url: "https://github.com/a/b" };
+    await handleReviseDraft({ ...sync, repo: github }, deps());
+    expect(removeClone).toHaveBeenCalledWith(github);
+    removeClone.mockClear();
+    await handleReviseDraft({ ...sync, repo: github, keepClone: true }, deps());
+    await handleReviseDraft({ ...sync, repo: { type: "folder", path: "/x" } }, deps());
+    expect(removeClone).not.toHaveBeenCalled();
+  });
+
   it("a plain edit of a repo post doesn't read the repository", async () => {
     const { fn: runClaudeJson, calls } = fakeRunClaudeJson({ xText: "shorter" });
     const resolveRepo = vi.fn();
@@ -933,6 +949,26 @@ describe("handleRepoPosts (posts from a repo, 2026-10-10)", () => {
     await expect(handleRepoPosts({ ...base, format: "thread" }, deps)).rejects.toThrow();
     await expect(handleRepoPosts({ ...base, source: { type: "folder", path: "" } }, deps)).rejects.toThrow();
     expect(resolveRepo).not.toHaveBeenCalled();
+  });
+
+  it("deletes a GitHub clone once the job ends, done or failed, unless the repo is pinned (keepClone)", async () => {
+    const removeClone = vi.fn(async () => {});
+    const { deps } = repoDeps({ posts: [{ text: "one" }] }, { dir: "/repos/a__b", name: "a/b" });
+    deps.removeClone = removeClone;
+    const base = { ideaId: "i1", source: github, brief: "", format: "x", count: 1 };
+    await handleRepoPosts(base, deps);
+    expect(removeClone).toHaveBeenCalledWith(github);
+    removeClone.mockClear();
+    await handleRepoPosts({ ...base, keepClone: true }, deps);
+    await handleRepoPosts({ ...base, source: folder }, deps);
+    expect(removeClone).not.toHaveBeenCalled();
+    deps.runClaudeJson = async () => { throw new Error("claude failed"); };
+    await expect(handleRepoPosts(base, deps)).rejects.toThrow("claude failed");
+    expect(removeClone).toHaveBeenCalledTimes(1);
+    // A delete that fails doesn't fail the job.
+    deps.runClaudeJson = fakeRunClaudeJson({ posts: [{ text: "one" }] }).fn;
+    deps.removeClone = async () => { throw new Error("EBUSY"); };
+    await expect(handleRepoPosts(base, deps)).resolves.toMatchObject({ repoName: "a/b" });
   });
 
   it("a source that can't be read fails the job with its sentence", async () => {

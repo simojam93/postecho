@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
-import { mkdir, stat } from "node:fs/promises";
+import { mkdir, rm, stat } from "node:fs/promises";
 import { homedir } from "node:os";
-import { basename, join } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { promisify } from "node:util";
 
 /** Where the posts come from (posts from a repo, 2026-10-10): a folder on this computer, or a public GitHub repository. */
@@ -61,6 +61,23 @@ export async function resolveRepo(source: RepoSource, deps: ResolveRepoDeps): Pr
   return { dir, name };
 }
 
+/**
+ * Deletes a GitHub source's clone (owner, 2026-10-10: a clone stays only while its repo is
+ * pinned; the web says so with the job's keepClone). A folder is never touched, and nothing
+ * outside `reposDir` is: the clone's directory must sit right inside it.
+ */
+export async function removeClone(
+  source: RepoSource,
+  deps: { reposDir: string; rm: (p: string, opts: { recursive: true; force: true }) => Promise<void> },
+): Promise<void> {
+  if (source.type !== "github") return;
+  const repo = parseGithubUrl(source.url);
+  if (!repo) return;
+  const dir = resolve(deps.reposDir, `${repo.owner}__${repo.name}`);
+  if (dirname(dir) !== resolve(deps.reposDir)) return;
+  await deps.rm(dir, { recursive: true, force: true });
+}
+
 /** Where GitHub clones live on this computer. */
 export const REPOS_DIR = join(homedir(), ".postecho", "repos");
 
@@ -92,4 +109,9 @@ async function statOrNull(p: string): Promise<{ isDirectory(): boolean } | null>
 export async function resolveRepoOnThisComputer(source: RepoSource): Promise<{ dir: string; name: string }> {
   if (source.type === "github") await mkdir(REPOS_DIR, { recursive: true });
   return resolveRepo(source, { git: nodeGit, reposDir: REPOS_DIR, stat: statOrNull });
+}
+
+/** removeClone with the real file system and ~/.postecho/repos. */
+export function removeCloneOnThisComputer(source: RepoSource): Promise<void> {
+  return removeClone(source, { reposDir: REPOS_DIR, rm });
 }
