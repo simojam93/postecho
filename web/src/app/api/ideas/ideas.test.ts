@@ -266,6 +266,45 @@ describe("PATCH /api/ideas/:id", () => {
   });
 });
 
+describe("PATCH /api/ideas/:id favorite (repo favorites, 2026-10-10)", () => {
+  const patch = (id: string, body: unknown) => PATCH(
+    new Request("http://test/api/ideas/x", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
+    { params: Promise.resolve({ id }) },
+  );
+  const repo = async () => {
+    const [row] = await state.db!.insert(ideas).values({
+      url: "file:///Users/me/dev/app", kind: "repo", title: "app", source: "manual",
+      meta: { sourceType: "folder", path: "/Users/me/dev/app", usedAt: "2026-10-10T10:00:00.000Z" },
+    }).returning();
+    return row;
+  };
+
+  it("pins a repo source in its meta, keeping the rest, and unpins it", async () => {
+    const r = await repo();
+    const pinned = await patch(r.id, { favorite: true });
+    expect(pinned.status).toBe(200);
+    expect((await pinned.json()).idea.meta).toEqual({ ...r.meta, favorite: true });
+    const unpinned = await (await patch(r.id, { favorite: false })).json();
+    expect(unpinned.idea.meta.favorite).toBe(false);
+    expect(unpinned.idea.status).toBe("new");
+  });
+
+  it("hides and unpins in one go", async () => {
+    const r = await repo();
+    await patch(r.id, { favorite: true });
+    const res = await (await patch(r.id, { status: "dismissed", favorite: false })).json();
+    expect(res.idea).toMatchObject({ status: "dismissed", meta: { favorite: false } });
+  });
+
+  it("only for repo sources, and not without a field", async () => {
+    const created = await (await POST(req("POST", { text: "n" }))).json();
+    expect((await patch(created.idea.id, { favorite: true })).status).toBe(400);
+    const r = await repo();
+    expect((await patch(r.id, {})).status).toBe(400);
+    expect((await patch(r.id, { favorite: "yes" })).status).toBe(400);
+  });
+});
+
 describe("capture token scope (review regression)", () => {
   it("POST session-gates without throwing when a bearer is sent but CAPTURE_TOKEN is unset/empty", async () => {
     vi.stubEnv("CAPTURE_TOKEN", "");
