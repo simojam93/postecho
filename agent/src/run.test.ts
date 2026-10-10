@@ -67,4 +67,17 @@ describe("runAgentLoop", () => {
     expect(await running).toBe("wake");
     expect(server.close).toHaveBeenCalled();
   });
+
+  it("hands the server the media directory, so the page can show a post's media (2026-10-11)", async () => {
+    const s = stopper();
+    const startServer = vi.fn(async (_o: { media?: unknown }) => ({ close: vi.fn() }));
+    const running = runAgentLoop({
+      ...base, wakePort: 47321, worker: fakeWorker(), isStopping: s.isStopping, stopped: s.stopped, startServer,
+      media: { baseDir: "/Users/me/.postecho/media" },
+    });
+    await vi.waitFor(() => expect(startServer).toHaveBeenCalled());
+    expect(startServer.mock.calls[0]![0]).toMatchObject({ media: { baseDir: "/Users/me/.postecho/media" } });
+    s.stop();
+    await running;
+  });
 });

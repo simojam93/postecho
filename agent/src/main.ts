@@ -61,6 +61,7 @@ export async function runAgent(): Promise<void> {
     pollIdleSeconds: config.pollIdleSeconds,
     isStopping: () => stopping,
     stopped,
+    media: { baseDir: MEDIA_DIR },
   });
   console.log("[agent] stopped.");
 }

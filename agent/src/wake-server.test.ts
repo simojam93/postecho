@@ -1,6 +1,9 @@
+import { mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { createServer, request, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { startWakeServer } from "./wake-server.js";
 
 const ORIGIN = "https://postecho.example.com";
@@ -26,7 +29,7 @@ async function start(controller = fakeController()) {
   return { controller, port: (server.address() as AddressInfo).port, server };
 }
 
-function call(port: number, method: string, path: string, headers: Record<string, string> = {}) {
+function call(port: number, method: string, path: string, headers: Record<string, string> = {}, body?: string) {
   return new Promise<{ status: number; headers: Record<string, string | string[] | undefined>; body: string }>((resolve, reject) => {
     const req = request({ host: "127.0.0.1", port, method, path, headers }, (res) => {
       let body = "";
@@ -34,7 +37,7 @@ function call(port: number, method: string, path: string, headers: Record<string
       res.on("end", () => resolve({ status: res.statusCode ?? 0, headers: res.headers, body }));
     });
     req.on("error", reject);
-    req.end();
+    req.end(body);
   });
 }
 
@@ -53,7 +56,7 @@ describe("the wake server", () => {
     });
     expect(res.status).toBe(204);
     expect(res.headers["access-control-allow-origin"]).toBe(ORIGIN);
-    expect(res.headers["access-control-allow-methods"]).toBe("GET, POST");
+    expect(res.headers["access-control-allow-methods"]).toBe("GET, POST, DELETE");
     expect(res.headers["access-control-allow-headers"]).toBe("content-type");
     expect(res.headers["access-control-allow-private-network"]).toBe("true");
     expect(res.headers["vary"]).toBe("Origin");
@@ -106,5 +109,82 @@ describe("the wake server", () => {
     const server = await startWakeServer({ port, origin: ORIGIN, controller: fakeController(), logger: quiet });
     expect(server).toBeNull();
     expect(quiet.log.mock.calls.flat().join("\n")).toContain(`port ${port} is taken`);
+  });
+});
+
+describe("the media routes (media from a repo, 2026-10-11)", () => {
+  const DRAFT = "6f1c2a3e-1b2c-4d5e-8f90-123456789abc";
+  let base: string;
+  beforeEach(async () => {
+    base = await mkdtemp(join(tmpdir(), "postecho-wake-media-"));
+    await mkdir(join(base, DRAFT));
+    await writeFile(join(base, DRAFT, "card-ab.png"), "PNGDATA");
+    await writeFile(join(base, "secret.png"), "SECRET");
+  });
+  afterEach(async () => {
+    await rm(base, { recursive: true, force: true });
+  });
+
+  async function startMedia(platform: NodeJS.Platform = "darwin") {
+    const reveal = vi.fn(async (_path: string) => {});
+    const server = await startWakeServer({ port: 0, origin: ORIGIN, controller: fakeController(), logger: quiet, media: { baseDir: base, reveal, platform } });
+    if (!server) throw new Error("did not listen");
+    servers.push(server);
+    return { port: (server.address() as AddressInfo).port, reveal };
+  }
+
+  it("GET /media/<draftId>/<file> serves the file with its content type, to the app's origin only", async () => {
+    const { port } = await startMedia();
+    const res = await call(port, "GET", `/media/${DRAFT}/card-ab.png`, { origin: ORIGIN });
+    expect(res.status).toBe(200);
+    expect(res.headers["content-type"]).toBe("image/png");
+    expect(res.headers["access-control-allow-origin"]).toBe(ORIGIN);
+    expect(res.body).toBe("PNGDATA");
+    expect((await call(port, "GET", `/media/${DRAFT}/card-ab.png`, { origin: "https://evil.example.com" })).status).toBe(403);
+    expect((await call(port, "GET", `/media/${DRAFT}/card-ab.png`)).status).toBe(403);
+  });
+
+  it("answers 404 for a missing file and never leaves the media directory", async () => {
+    const { port } = await startMedia();
+    expect((await call(port, "GET", `/media/${DRAFT}/nope.png`, { origin: ORIGIN })).status).toBe(404);
+    for (const path of [
+      `/media/${DRAFT}/../secret.png`, `/media/${DRAFT}/..%2Fsecret.png`, `/media/${DRAFT}/%2e%2e%2fsecret.png`,
+      `/media/..%2F/secret.png`, `/media/${DRAFT}/a/b.png`, `/media/${DRAFT}/%2Fetc%2Fpasswd`, `/media/${DRAFT}/%E0%A4%A`,
+      `/media/${DRAFT}/notes.txt`,
+    ]) {
+      const res = await call(port, "GET", path, { origin: ORIGIN });
+      expect(res.status, path).toBe(404);
+      expect(res.body).not.toContain("SECRET");
+    }
+  });
+
+  it("DELETE /media/<draftId>/<file> removes it", async () => {
+    const { port } = await startMedia();
+    expect((await call(port, "DELETE", `/media/${DRAFT}/card-ab.png`, { origin: ORIGIN })).status).toBe(204);
+    expect(await readdir(join(base, DRAFT))).toEqual([]);
+    expect((await call(port, "DELETE", `/media/${DRAFT}/card-ab.png`, { origin: ORIGIN })).status).toBe(404);
+    expect((await call(port, "DELETE", `/media/${DRAFT}/..%2Fsecret.png`, { origin: ORIGIN })).status).toBe(404);
+    expect(await readdir(base)).toContain("secret.png");
+  });
+
+  it("POST /media/reveal shows the file in Finder, and answers 501 elsewhere than macOS", async () => {
+    const { port, reveal } = await startMedia();
+    const json = { origin: ORIGIN, "content-type": "application/json" };
+    expect((await call(port, "POST", "/media/reveal", json, JSON.stringify({ draftId: DRAFT, file: "card-ab.png" }))).status).toBe(204);
+    expect(reveal).toHaveBeenCalledWith(join(base, DRAFT, "card-ab.png"));
+    expect((await call(port, "POST", "/media/reveal", json, JSON.stringify({ draftId: DRAFT, file: "../secret.png" }))).status).toBe(404);
+    expect((await call(port, "POST", "/media/reveal", json, JSON.stringify({ draftId: DRAFT, file: "gone.png" }))).status).toBe(404);
+    expect((await call(port, "POST", "/media/reveal", json, "not json")).status).toBe(400);
+    expect(reveal).toHaveBeenCalledTimes(1);
+
+    const linux = await startMedia("linux");
+    expect((await call(linux.port, "POST", "/media/reveal", json, JSON.stringify({ draftId: DRAFT, file: "card-ab.png" }))).status).toBe(501);
+    expect(linux.reveal).not.toHaveBeenCalled();
+  });
+
+  it("answers 405 for a wrong method on a media path", async () => {
+    const { port } = await startMedia();
+    expect((await call(port, "POST", `/media/${DRAFT}/card-ab.png`, { origin: ORIGIN })).status).toBe(405);
+    expect((await call(port, "GET", "/media/reveal", { origin: ORIGIN })).status).toBe(405);
   });
 });
