@@ -48,6 +48,18 @@ describe("POST /api/repos", () => {
     });
   });
 
+  it("a pinned source's job keeps its clone (keepClone); the others don't say it", async () => {
+    await post({ source: { type: "github", url: "https://github.com/a/b" }, format: "x" });
+    const [repo] = await state.db!.select().from(ideas);
+    expect((await state.db!.select().from(jobs))[0].payload).not.toHaveProperty("keepClone");
+    const { eq } = await import("drizzle-orm");
+    await state.db!.update(ideas).set({ meta: { ...repo.meta, favorite: true } }).where(eq(ideas.id, repo.id));
+    const res = await post({ source: { type: "github", url: "https://github.com/a/b" }, format: "x" });
+    const { jobId } = await res.json();
+    const [job] = await state.db!.select().from(jobs).where(eq(jobs.id, jobId));
+    expect(job.payload).toMatchObject({ keepClone: true });
+  });
+
   it("the same source again reuses its idea, back among the sources, with a new job", async () => {
     await post({ source: { type: "github", url: "https://github.com/a/b" }, format: "x" });
     const [first] = await state.db!.select().from(ideas);

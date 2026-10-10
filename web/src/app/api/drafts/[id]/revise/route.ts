@@ -49,13 +49,17 @@ const Body = z.object({
  * "shorter hook"). materialize.ts (task A3) turns the result into a new
  * draft with `parentId` pointing back at this one and `status: "kept"`.
  */
-/** The repository a repo post came from, as the agent's source: `{ repo }`, or nothing when it's gone. */
-async function repoOf(post: typeof ideas.$inferSelect): Promise<{ repo?: { type: "folder"; path: string } | { type: "github"; url: string } }> {
+/**
+ * The repository a repo post came from, as the agent's source: `{ repo }`, or nothing when it's gone.
+ * A pinned one (meta.favorite) adds `keepClone: true`: the agent keeps its GitHub clone.
+ */
+async function repoOf(post: typeof ideas.$inferSelect): Promise<{ repo?: { type: "folder"; path: string } | { type: "github"; url: string }; keepClone?: true }> {
   const repoId = typeof post.meta.repoId === "string" ? post.meta.repoId : null;
   const [repo] = repoId ? await db.select().from(ideas).where(eq(ideas.id, repoId)).limit(1) : [];
   if (!repo?.url) return {};
-  if (repo.meta.sourceType === "folder" && typeof repo.meta.path === "string") return { repo: { type: "folder", path: repo.meta.path } };
-  if (repo.meta.sourceType === "github") return { repo: { type: "github", url: repo.url } };
+  const keep = repo.meta.favorite === true ? { keepClone: true as const } : {};
+  if (repo.meta.sourceType === "folder" && typeof repo.meta.path === "string") return { repo: { type: "folder", path: repo.meta.path }, ...keep };
+  if (repo.meta.sourceType === "github") return { repo: { type: "github", url: repo.url }, ...keep };
   return {};
 }
 
