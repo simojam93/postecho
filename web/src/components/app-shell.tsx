@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { AccountBar } from "@/components/account-bar";
+import { AgentWaker } from "@/components/agent-waker";
 import { BrandMark } from "@/components/brand-mark";
 import { Nav } from "@/components/nav";
 import { SettingsButton } from "@/components/settings/settings-provider";
@@ -9,7 +10,8 @@ import { SettingsButton } from "@/components/settings/settings-provider";
  * foot) and the page beside it. From md up the sidebar stays put and only the
  * page scrolls (owner, 2026-09-27: "questa fammela fissa, si scrolla solo la
  * parte a destra di ogni tab"). On a phone the sidebar is the header, so the cog
- * stays by the logo there.
+ * stays by the logo there. AgentWaker wakes the agent on the owner's computer
+ * while the app is open.
  */
 export function AppShell({ name, children }: { name: string; children: ReactNode }) {
   return (
@@ -26,6 +28,7 @@ export function AppShell({ name, children }: { name: string; children: ReactNode
         </div>
       </aside>
       <main className="min-w-0 flex-1">{children}</main>
+      <AgentWaker />
     </div>
   );
 }
