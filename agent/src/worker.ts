@@ -11,6 +11,19 @@ const CLAIM_ERROR_BACKOFF_MS = 2_000;
  * after that would be lost while the job ran twice.
  */
 const JOB_BUDGET_MS = 9 * 60_000;
+/**
+ * Screenshots and videos of a post (media from a repo, 2026-10-11) run the
+ * project and record it: the web waits 45 minutes before requeueing them, so
+ * they get 40 here, with five to spare for the report.
+ */
+const LONG_JOB_BUDGET_MS = 40 * 60_000;
+const LONG_MEDIA = new Set(["screenshots", "video"]);
+
+/** How long this job may take, all its Claude calls included. */
+export function jobBudgetMs(job: Pick<Job, "kind" | "payload">): number {
+  return job.kind === "post_media" && LONG_MEDIA.has(String(job.payload?.kind)) ? LONG_JOB_BUDGET_MS : JOB_BUDGET_MS;
+}
+
 /** The jobs that read a whole video's transcript, or a whole repository: their Claude calls get twice the time. */
 const LONG_READS = new Set(["video_ideas", "generate_from_video", "repo_posts"]);
 
@@ -85,11 +98,16 @@ export function createWorker(opts: WorkerOptions) {
     const startedAt = Date.now();
     // Progress is per job: it posts to this job's id with this claim's ownership echo.
     const claimed = job;
-    const deadline = startedAt + JOB_BUDGET_MS;
+    const budget = jobBudgetMs(job);
+    const deadline = startedAt + budget;
     const long = LONG_READS.has(job.kind);
+    // A long media job's one Claude call may use all the time left, not CLAUDE_TIMEOUT_MS.
+    const ownTime = budget > JOB_BUDGET_MS;
     const outcome = await run(job, {
       ...deps,
-      runClaudeJson: (o) => runner.runClaudeJson({ ...o, long: long || o.long === true, deadline }),
+      runClaudeJson: (o) => runner.runClaudeJson({
+        ...o, long: long || o.long === true, deadline, ...(ownTime ? { timeoutMs: deadline - Date.now() } : {}),
+      }),
       reportProgress: (progress) => client.reportProgress(claimed.id, claimed.claimedAt, progress),
     });
     const elapsedMs = Date.now() - startedAt;
