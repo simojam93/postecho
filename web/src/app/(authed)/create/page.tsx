@@ -80,6 +80,8 @@ function WriteContent() {
   const [removingIdeaId, setRemovingIdeaId] = useState<string | null>(null);
   // Write's + New (2026-09-24): the composer for a post from the owner's own text.
   const [composerOpen, setComposerOpen] = useState(false);
+  // Ready (schedule in a row, 2026-10-10): a post just went to Schedule's list.
+  const [sentToSchedule, setSentToSchedule] = useState(false);
 
   // Drafts with no idea (none exist today) come back as an ideaId-null entry
   // that `?ideaId=` can't address — the strip skips it.
@@ -355,6 +357,17 @@ function WriteContent() {
     }
   }
 
+  /**
+   * Ready was saved: the post is in Schedule's list, so Compose moves on to the next post in progress.
+   * Its chip goes at once, so the URL isn't pinned back to it before the strip reloads.
+   */
+  function sentReady(ideaId: string) {
+    setPosts((current) => current?.filter((p) => p.ideaId !== ideaId) ?? current);
+    setSentToSchedule(true);
+    router.replace("/create");
+    reload();
+  }
+
   /** + New finished: the owner's text is an idea with a generation job — open it (its takes row shows Claude working). */
   function openNewPost(ideaId: string) {
     setComposerOpen(false);
@@ -376,6 +389,11 @@ function WriteContent() {
     if (posts === null) return <p className="text-sm text-text-dim">Loading…</p>;
     return (
       <div className="space-y-4">
+        {sentToSchedule && (
+          <p role="status" className="text-sm text-ok">
+            ✓ Ready · <Link href="/calendar" className="underline hover:text-text">See it in Schedule</Link>
+          </p>
+        )}
         {postsError && <p className="text-sm text-danger">{postsError}</p>}
         <div className="flex items-start gap-3">
           <p className="text-sm text-text-dim">
@@ -396,7 +414,7 @@ function WriteContent() {
             chips={chips}
             currentIdeaId={currentIdeaId}
             removingIdeaId={removingIdeaId}
-            onSelect={(id) => router.replace(`/create?ideaId=${id}`)}
+            onSelect={(id) => { setSentToSchedule(false); router.replace(`/create?ideaId=${id}`); }}
             onRemove={removePost}
             onNew={() => setComposerOpen((open) => !open)}
             newOpen={composerOpen}
@@ -405,6 +423,11 @@ function WriteContent() {
         <ArchiveButton refreshKey={postsKey} className="ml-auto" />
       </div>
       {composerOpen && <NewPostComposer onCreated={openNewPost} onCancel={() => setComposerOpen(false)} autoFocus />}
+      {sentToSchedule && (
+        <p role="status" className="text-sm text-ok">
+          ✓ Ready · <Link href="/calendar" className="underline hover:text-text">See it in Schedule</Link>
+        </p>
+      )}
       {postsError && <p className="text-sm text-danger">{postsError}</p>}
 
       {idea === undefined && !ideasError && <p className="text-sm text-text-dim">Loading…</p>}
@@ -446,6 +469,7 @@ function WriteContent() {
           onMutated={reload}
           onRefined={handleRefined}
           onPickVersion={pickTake}
+          onReady={() => { if (currentIdeaId) sentReady(currentIdeaId); }}
         />
       )}
     </div>

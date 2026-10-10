@@ -42,3 +42,24 @@ describe("Your post, one card (2026-09-27: \"lo vedo in casinato… il create li
     expect(render(inStep, "linkedin")).not.toContain("Update from X");
   });
 });
+
+describe("Ready, next to Schedule (schedule in a row, 2026-10-10)", () => {
+  it("a finished post has Ready just before Schedule", () => {
+    const html = render(draft({}));
+    expect(html.indexOf(">Ready</button>")).toBeGreaterThan(-1);
+    expect(html.indexOf(">Ready</button>")).toBeLessThan(html.indexOf(">Schedule</button>"));
+    expect(html).not.toMatch(/disabled=""[^>]*>Ready</);
+    expect(html).not.toContain("Back to Compose");
+  });
+
+  it("can't be ready without text, or with an X text over 280 characters", () => {
+    expect(render(draft({ xText: "" }))).toMatch(/<button[^>]*disabled=""[^>]*>Ready<\/button>/);
+    expect(render(draft({ xText: "x".repeat(281) }))).toMatch(/<button[^>]*disabled=""[^>]*>Ready<\/button>/);
+  });
+
+  it("a ready post, opened from Schedule's list, goes back with Back to Compose instead", () => {
+    const html = render(draft({ readyAt: "2026-10-10T09:00:00.000Z" }));
+    expect(html).toContain(">Back to Compose</button>");
+    expect(html).not.toContain(">Ready</button>");
+  });
+});
