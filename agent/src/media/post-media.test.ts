@@ -87,6 +87,64 @@ describe("only the owner's folders run", () => {
   });
 });
 
+describe("what needs a repo", () => {
+  it("images, screenshots and a video refuse a payload without a source before anything runs", async () => {
+    for (const kind of ["images", "screenshots", "video"]) {
+      const claude = fakeClaude({});
+      const { deps, resolveRepo } = makeDeps(claude);
+      await expect(handlePostMedia({ draftId: DRAFT, kind, postText: "A post." }, deps)).rejects.toThrow();
+      expect(resolveRepo).not.toHaveBeenCalled();
+      expect(claude.calls).toHaveLength(0);
+    }
+  });
+});
+
+describe("the source's image (2026-10-11)", () => {
+  const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1, 2, 3]);
+  function fetchOf(body: Uint8Array | null, headers: Record<string, string>, status = 200) {
+    return vi.fn(async (_url: string | URL | Request, _init?: RequestInit) => new Response(body, { status, headers }));
+  }
+  const imagePayload = (over: Record<string, unknown> = {}) => ({
+    draftId: DRAFT, kind: "source_image", imageUrl: "https://i.ytimg.com/vi/abc/hqdefault.jpg", sourceName: "Chan", ...over,
+  });
+
+  it("downloads the one image into the post's media folder, credited to its source, without Claude", async () => {
+    const claude = fakeClaude({});
+    const fetch = fetchOf(PNG, { "content-type": "image/jpeg" });
+    const { deps, resolveRepo, progress } = makeDeps(claude);
+    deps.media!.fetch = fetch;
+    const result = await handlePostMedia(imagePayload(), deps);
+    expect(result).toEqual({ items: [{ file: "source-t0k3n.jpg", kind: "image", caption: "via Chan" }] });
+    expect(fetch.mock.calls[0]![0]).toBe("https://i.ytimg.com/vi/abc/hqdefault.jpg");
+    expect(new Uint8Array(await readFile(join(draftDir(), "source-t0k3n.jpg")))).toEqual(PNG);
+    expect(claude.calls).toHaveLength(0);
+    expect(resolveRepo).not.toHaveBeenCalled();
+    expect(progress.map((p) => p.phase)).toEqual(["saving"]);
+  });
+
+  it("only https, only an image, at most 10 MB: never a video or a sound", async () => {
+    const { deps } = makeDeps(fakeClaude({}));
+    deps.media!.fetch = fetchOf(PNG, { "content-type": "image/png" });
+    await expect(handlePostMedia(imagePayload({ imageUrl: "http://example.com/a.png" }), deps)).rejects.toThrow();
+    await expect(handlePostMedia(imagePayload({ imageUrl: undefined }), deps)).rejects.toThrow();
+    await expect(handlePostMedia(imagePayload({ sourceName: undefined }), deps)).rejects.toThrow();
+    expect(deps.media!.fetch).not.toHaveBeenCalled();
+
+    for (const type of ["video/mp4", "audio/mpeg", "text/html", "image/svg+xml"]) {
+      deps.media!.fetch = fetchOf(PNG, { "content-type": type });
+      await expect(handlePostMedia(imagePayload(), deps)).rejects.toThrow("isn't an image");
+    }
+    deps.media!.fetch = fetchOf(PNG, { "content-type": "image/png", "content-length": String(11 * 1024 * 1024) });
+    await expect(handlePostMedia(imagePayload(), deps)).rejects.toThrow("over 10 MB");
+    // A server that doesn't say how big it is is stopped at 10 MB too.
+    deps.media!.fetch = fetchOf(new Uint8Array(10 * 1024 * 1024 + 1), { "content-type": "image/png" });
+    await expect(handlePostMedia(imagePayload(), deps)).rejects.toThrow("over 10 MB");
+    deps.media!.fetch = fetchOf(null, { "content-type": "image/png" }, 404);
+    await expect(handlePostMedia(imagePayload(), deps)).rejects.toThrow("couldn't be downloaded");
+    expect(await readdir(draftDir())).toEqual([]);
+  });
+});
+
 describe("images from the repo", () => {
   it("reads the repository with read tools only and copies the images that fit, best first, with Claude's reason", async () => {
     await writeFile(join(repo, "docs", "gate.png"), "a png");
@@ -162,6 +220,21 @@ describe("a card", () => {
     expect(renderCard.mock.calls.map((c) => c[1])).toEqual([{ width: 1600, height: 900 }, { width: 1080, height: 1350 }]);
     // A folder's card carries the folder's name.
     expect(renderCard.mock.calls[0]![0]).toContain(">app<");
+  });
+
+  it("needs no repo: a post from anywhere carries its source's name small at the bottom, or nothing", async () => {
+    const claude = fakeClaude({ headline: "Gate first" });
+    const { deps, renderCard, resolveRepo } = makeDeps(claude);
+    const result = await handlePostMedia({ draftId: DRAFT, kind: "card", postText: "A post about a talk.", sourceName: "Chan" }, deps);
+    expect(result).toEqual({ items: [{ file: "card-t0k3n.png", kind: "card" }] });
+    expect(resolveRepo).not.toHaveBeenCalled();
+    expect(claude.calls[0]!.prompt).toContain('This post comes from "Chan".');
+    expect(claude.calls[0]!.prompt).not.toContain("repository");
+    expect(renderCard.mock.calls[0]![0]).toContain(">Chan<");
+
+    renderCard.mockClear();
+    await handlePostMedia({ draftId: DRAFT, kind: "card", postText: "My own words." }, deps);
+    expect(renderCard.mock.calls[0]![0]).not.toContain('class="footer"');
   });
 
   it("fails with the renderer's sentence", async () => {

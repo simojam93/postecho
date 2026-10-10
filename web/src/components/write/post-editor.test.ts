@@ -64,12 +64,12 @@ describe("Add to queue, next to Schedule (schedule in a row, 2026-10-10)", () =>
   });
 });
 
-describe("Add media (media from a repo, 2026-10-11)", () => {
-  it("only a post from a repo has it, before the actions", () => {
+describe("Add media (media from a repo, 2026-10-11; every post since)", () => {
+  it("every post has it, whatever its source, before the actions", () => {
     const fromRepo = render(draft({ idea: { id: "idea", title: null, url: null, kind: "repo_post" } }));
     expect(fromRepo).toContain(">Add media</button>");
     expect(fromRepo.indexOf(">Add media</button>")).toBeLessThan(fromRepo.indexOf(">Discard</button>"));
-    expect(render(draft({ idea: { id: "idea", title: null, url: null, kind: "youtube" } }))).not.toContain("Add media");
-    expect(render(draft({}))).not.toContain("Add media");
+    expect(render(draft({ idea: { id: "idea", title: null, url: null, kind: "youtube" } }))).toContain(">Add media</button>");
+    expect(render(draft({}))).toContain(">Add media</button>");
   });
 });

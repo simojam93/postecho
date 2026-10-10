@@ -95,7 +95,7 @@ export function ArticleEditor({ draft, onMutated }: {
         </p>
       )}
 
-      {draft.idea?.kind === "repo_post" && <PostMedia draftId={draft.id} />}
+      <PostMedia draftId={draft.id} />
 
       <div className="flex flex-wrap items-center gap-2 pt-2">
         <button type="button" onClick={() => void discard()} disabled={busy}

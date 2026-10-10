@@ -74,12 +74,17 @@ describe("POST /api/drafts/:id/media (media from a repo, 2026-10-11)", () => {
     expect(job.payload).toMatchObject({ postText: "What we learned\n\nBody.", format: "article" });
   });
 
-  it("refuses a post that isn't from a repo, an unknown draft and an unknown kind", async () => {
+  it("refuses what the post's source can't give, an unknown draft and an unknown kind", async () => {
     const [idea] = await state.db!.insert(ideas).values({ kind: "note", content: "a" }).returning();
     const [other] = await state.db!.insert(drafts).values({ ideaId: idea.id, xText: "hi" }).returning();
-    const res = await ask(other.id, { kind: "card" });
-    expect(res.status).toBe(400);
-    expect((await res.json()).error).toBe("Media are made for posts from a repo.");
+    const images = await ask(other.id, { kind: "images" });
+    expect(images.status).toBe(400);
+    expect((await images.json()).error).toBe("This kind of media comes from a post's repo.");
+    const sourceImage = await ask(other.id, { kind: "source_image" });
+    expect(sourceImage.status).toBe(400);
+    expect((await sourceImage.json()).error).toBe("This post's source has no image.");
+    const { draft: fromRepo } = await repoDraft("github");
+    expect((await ask(fromRepo.id, { kind: "source_image" })).status).toBe(400);
     expect((await ask(MISSING, { kind: "card" })).status).toBe(404);
     expect((await ask("nope", { kind: "card" })).status).toBe(404);
     const { draft } = await repoDraft("folder");
@@ -102,6 +107,69 @@ describe("POST /api/drafts/:id/media (media from a repo, 2026-10-11)", () => {
   });
 });
 
+describe("media for posts from anywhere (2026-10-11)", () => {
+  it("a card for a post of your own words: no repo, no footer name", async () => {
+    const [note] = await state.db!.insert(ideas).values({ kind: "note", content: "My words." }).returning();
+    const [draft] = await state.db!.insert(drafts).values({ ideaId: note.id, xText: "My words.", status: "kept" }).returning();
+    expect((await ask(draft.id, { kind: "card" })).status).toBe(201);
+    const [job] = await state.db!.select().from(jobs);
+    expect(job.payload).toEqual({ draftId: draft.id, kind: "card", postText: "My words.", format: "x" });
+    // A draft with no idea at all gets a card too.
+    const [bare] = await state.db!.insert(drafts).values({ xText: "Bare." }).returning();
+    expect((await (await look(bare.id)).json()).kinds).toEqual(["card"]);
+  });
+
+  it("a card for a Trends post carries its author, an article's its site", async () => {
+    const [post] = await state.db!.insert(ideas).values({ kind: "x_post", url: "https://x.com/a/status/1", author: "@a", content: "A post" }).returning();
+    const [draft] = await state.db!.insert(drafts).values({ ideaId: post.id, xText: "Mine.", status: "kept" }).returning();
+    await ask(draft.id, { kind: "card" });
+    const [article] = await state.db!.insert(ideas).values({ kind: "article", url: "https://www.example.com/post", title: "A Great Article" }).returning();
+    const [onArticle] = await state.db!.insert(drafts).values({ ideaId: article.id, linkedinText: "Mine on LinkedIn.", status: "kept" }).returning();
+    await state.db!.update(jobs).set({ status: "done" });
+    await ask(onArticle.id, { kind: "card" });
+    const rows = await state.db!.select().from(jobs);
+    expect(rows.find((j) => j.payload.draftId === draft.id)!.payload).toMatchObject({ kind: "card", sourceName: "@a" });
+    expect(rows.find((j) => j.payload.draftId === onArticle.id)!.payload).toMatchObject({ kind: "card", sourceName: "example.com", format: "linkedin" });
+  });
+
+  it("a YouTube card's thumbnail, credited to the channel", async () => {
+    const [video] = await state.db!.insert(ideas).values({
+      kind: "youtube", url: "https://youtu.be/v", title: "The talk", author: "Chan", meta: { thumbnailUrl: "https://i.ytimg.com/vi/v/hqdefault.jpg" },
+    }).returning();
+    const [draft] = await state.db!.insert(drafts).values({ ideaId: video.id, xText: "On the talk.", status: "kept" }).returning();
+    expect((await (await look(draft.id)).json()).kinds).toEqual(["card", "source_image"]);
+    expect((await ask(draft.id, { kind: "source_image" })).status).toBe(201);
+    const [job] = await state.db!.select().from(jobs);
+    expect(job.payload).toEqual({
+      draftId: draft.id, kind: "source_image", postText: "On the talk.", format: "x",
+      sourceName: "Chan", imageUrl: "https://i.ytimg.com/vi/v/hqdefault.jpg",
+    });
+  });
+
+  it("a video's post reaches its video's thumbnail; an article its og:image; never an http one", async () => {
+    const [video] = await state.db!.insert(ideas).values({
+      kind: "youtube", url: "https://youtu.be/v", author: "Chan", meta: { thumbnailUrl: "https://i.ytimg.com/vi/v/hqdefault.jpg" },
+    }).returning();
+    const [post] = await state.db!.insert(ideas).values({
+      kind: "video_idea", author: "Chan", content: "A post", meta: { videoId: video.id, format: "post", articleUrl: "https://youtu.be/v" },
+    }).returning();
+    const [fromVideo] = await state.db!.insert(drafts).values({ ideaId: post.id, xText: "A post", status: "kept" }).returning();
+    expect((await (await look(fromVideo.id)).json()).kinds).toEqual(["card", "source_image"]);
+
+    const [article] = await state.db!.insert(ideas).values({
+      kind: "article", url: "https://example.com/a", meta: { imageUrl: "https://example.com/cover.png" },
+    }).returning();
+    const [onArticle] = await state.db!.insert(drafts).values({ ideaId: article.id, xText: "Mine.", status: "kept" }).returning();
+    expect((await ask(onArticle.id, { kind: "source_image" })).status).toBe(201);
+    const [job] = await state.db!.select().from(jobs);
+    expect(job.payload).toMatchObject({ kind: "source_image", sourceName: "example.com", imageUrl: "https://example.com/cover.png" });
+
+    const [insecure] = await state.db!.insert(ideas).values({ kind: "article", url: "https://example.com/b", meta: { imageUrl: "http://example.com/c.png" } }).returning();
+    const [onInsecure] = await state.db!.insert(drafts).values({ ideaId: insecure.id, xText: "Mine.", status: "kept" }).returning();
+    expect((await (await look(onInsecure.id)).json()).kinds).toEqual(["card"]);
+  });
+});
+
 describe("GET /api/drafts/:id/media", () => {
   it("says which kinds the source allows, the media and the latest media job", async () => {
     const { draft } = await repoDraft("github");
@@ -118,9 +186,9 @@ describe("GET /api/drafts/:id/media", () => {
     expect((await (await look(folder.draft.id)).json()).kinds).toEqual(["images", "card", "screenshots", "video"]);
   });
 
-  it("no kinds for a post that isn't from a repo; 404 for an unknown draft", async () => {
+  it("a card for a post that isn't from a repo; 404 for an unknown draft", async () => {
     const [other] = await state.db!.insert(drafts).values({ xText: "hi" }).returning();
-    expect(await (await look(other.id)).json()).toEqual({ kinds: [], media: [], job: null });
+    expect(await (await look(other.id)).json()).toEqual({ kinds: ["card"], media: [], job: null });
     expect((await look(MISSING)).status).toBe(404);
   });
 });

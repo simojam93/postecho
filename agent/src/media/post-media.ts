@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { copyFile, mkdir, readdir, realpath, rename, rm, stat } from "node:fs/promises";
+import { copyFile, mkdir, readdir, realpath, rename, rm, stat, writeFile } from "node:fs/promises";
 import { basename, extname, join, resolve, sep } from "node:path";
 import { z } from "zod";
 import type { HandlerDeps } from "../handlers.js";
@@ -18,7 +18,7 @@ import {
 import { CARD_SIZES, cardHtml, type CardSize } from "./card.js";
 import { isImageFile, mediaDirFor } from "./paths.js";
 
-/** What post_media needs besides Claude: where the files go, and how a card is drawn. */
+/** What post_media needs besides Claude: where the files go, how a card is drawn, and how the source's image is fetched. */
 export type MediaDeps = {
   /** ~/.postecho/media on the owner's computer (paths.ts's MEDIA_DIR); a temp folder in tests. */
   baseDir: string;
@@ -26,6 +26,8 @@ export type MediaDeps = {
   renderCard: (html: string, size: CardSize, out: string) => Promise<void>;
   /** The short token that keeps one job's file names apart from another's. */
   token?: () => string;
+  /** The global fetch; a fake in tests. */
+  fetch?: (url: string, init?: RequestInit) => Promise<Response>;
 };
 
 /** One file the job made, as the web stores it in drafts.meta.media. */
@@ -40,18 +42,36 @@ export const FOLDER_ONLY = "Screenshots and videos are made only from a folder o
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const MAX_SCREENSHOTS = 4;
+const IMAGE_FETCH_MS = 30_000;
 
+/** The image types the source's image may be, with the extension it's saved under (paths.ts serves these). */
+const IMAGE_TYPES: Record<string, string> = {
+  "image/png": ".png",
+  "image/jpeg": ".jpg",
+  "image/gif": ".gif",
+  "image/webp": ".webp",
+};
+
+/**
+ * A card and the source's image need no repository: a post from anywhere gets them (2026-10-11). The
+ * other kinds read the repository, so they need its `source`. The source's image needs an https link
+ * and the source's name for its caption.
+ */
 const PostMediaPayload = z.object({
   draftId: z.string().regex(/^[A-Za-z0-9-]{1,64}$/, "post_media needs a draft id"),
   repoId: z.string().nullish(),
   source: z.discriminatedUnion("type", [
     z.object({ type: z.literal("folder"), path: z.string().trim().min(1) }),
     z.object({ type: z.literal("github"), url: z.string().trim().min(1) }),
-  ]),
-  kind: z.enum(["images", "card", "screenshots", "video"]),
+  ]).nullish(),
+  kind: z.enum(["images", "card", "screenshots", "video", "source_image"]),
   postText: z.string().max(15_000).default(""),
   format: z.enum(["x", "linkedin", "article"]).default("x"),
-});
+  /** Where the post comes from (an author, a site, a video's channel), when it isn't a repository. */
+  sourceName: z.string().trim().min(1).max(120).nullish(),
+  imageUrl: z.string().max(2000).refine((url) => url.startsWith("https://") && URL.canParse(url), "only an https link").nullish(),
+}).refine((p) => p.kind === "card" || p.kind === "source_image" || p.source, "this kind of media needs a repository")
+  .refine((p) => p.kind !== "source_image" || (p.imageUrl && p.sourceName), "the source's image needs its link and its source's name");
 type Payload = z.infer<typeof PostMediaPayload>;
 type Phase = "reading" | "making" | "saving";
 
@@ -86,13 +106,14 @@ async function filesUnder(dir: string, depth = 3): Promise<string[]> {
 }
 
 /**
- * post_media (media from a repo, 2026-10-11): one post's images, card, screenshots or video, made into
- * the draft's media folder. Screenshots and video run the project, so they're refused for anything but a
- * folder on this computer before anything else happens, whatever the web sent. Answers `{ items }`.
+ * post_media (media from a repo, 2026-10-11): one post's images, card, screenshots, video or source's
+ * image, made into the draft's media folder. Screenshots and video run the project, so they're refused
+ * for anything but a folder on this computer before anything else happens, whatever the web sent.
+ * Answers `{ items }`.
  */
 export async function handlePostMedia(payload: unknown, deps: HandlerDeps): Promise<{ items: MediaItem[] }> {
   const p = PostMediaPayload.parse(payload);
-  if ((p.kind === "screenshots" || p.kind === "video") && p.source.type !== "folder") throw new Error(FOLDER_ONLY);
+  if ((p.kind === "screenshots" || p.kind === "video") && p.source?.type !== "folder") throw new Error(FOLDER_ONLY);
   const media = deps.media;
   if (!media) throw new Error("post_media: this agent can't make media");
   const dir = mediaDirFor(media.baseDir, p.draftId);
@@ -113,6 +134,8 @@ export async function handlePostMedia(payload: unknown, deps: HandlerDeps): Prom
       return { items: await screenshots(p, deps, dir, token, report) };
     case "video":
       return { items: await video(p, deps, dir, token, report) };
+    case "source_image":
+      return { items: await sourceImage(p, media, dir, token, report) };
   }
 }
 
@@ -120,6 +143,7 @@ type Report = (phase: Phase) => Promise<void>;
 
 async function resolveSource(p: Payload, deps: HandlerDeps): Promise<{ dir: string; name: string }> {
   if (!deps.resolveRepo) throw new Error("post_media: this agent can't read repositories");
+  if (!p.source) throw new Error("this kind of media needs a repository");
   return deps.resolveRepo(p.source);
 }
 
@@ -151,9 +175,10 @@ async function images(p: Payload, deps: HandlerDeps, dir: string, token: string,
 
 async function card(p: Payload, deps: HandlerDeps, media: MediaDeps, dir: string, token: string, report: Report): Promise<MediaItem[]> {
   await report("making");
-  const repoName = repoNameOf(p.source);
+  const repoName = p.source ? repoNameOf(p.source) : undefined;
+  const sourceName = p.sourceName ?? undefined;
   const words = await deps.runClaudeJson({
-    prompt: mediaCardPrompt({ repoName, postText: p.postText }),
+    prompt: mediaCardPrompt({ repoName, sourceName, postText: p.postText }),
     system: mediaSystemPrompt(),
     schema: MEDIA_CARD_SCHEMA,
     parse: parseMediaCard,
@@ -162,9 +187,53 @@ async function card(p: Payload, deps: HandlerDeps, media: MediaDeps, dir: string
   const sizes: Array<{ size: CardSize; file: string }> = [{ size: CARD_SIZES.landscape, file: `card-${token}.png` }];
   if (p.format === "linkedin") sizes.push({ size: CARD_SIZES.portrait, file: `card-${token}-tall.png` });
   for (const { size, file } of sizes) {
-    await media.renderCard(cardHtml({ ...words, repoName, ...size }), size, join(dir, file));
+    await media.renderCard(cardHtml({ ...words, footer: repoName ?? sourceName ?? "", ...size }), size, join(dir, file));
   }
   return sizes.map(({ file }) => ({ file, kind: "card" }));
+}
+
+/**
+ * The source's image (2026-10-11): the one preview image of the post's source (a video's thumbnail,
+ * an article's og:image), downloaded as it is with "via <source>" as its caption, so the credit goes
+ * with it. Only https, only PNG, JPEG, GIF or WebP, at most 10 MB; never a video or a sound. Nothing
+ * is written unless all of it arrived within those limits.
+ */
+async function sourceImage(p: Payload, media: MediaDeps, dir: string, token: string, report: Report): Promise<MediaItem[]> {
+  await report("saving");
+  const url = p.imageUrl!;
+  const res = await (media.fetch ?? fetch)(url, { redirect: "follow", signal: AbortSignal.timeout(IMAGE_FETCH_MS) });
+  if (!res.ok) throw new Error(`The source's image couldn't be downloaded (${res.status}).`);
+  if (res.url && !res.url.startsWith("https://")) throw new Error("The source's image couldn't be downloaded: it left https.");
+  const type = (res.headers.get("content-type") ?? "").split(";")[0]!.trim().toLowerCase();
+  const ext = IMAGE_TYPES[type];
+  if (!ext) {
+    await res.body?.cancel();
+    throw new Error("The source's link isn't an image PostEcho can attach.");
+  }
+  const tooBig = "The source's image is over 10 MB.";
+  if (Number(res.headers.get("content-length")) > MAX_IMAGE_BYTES) {
+    await res.body?.cancel();
+    throw new Error(tooBig);
+  }
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  if (res.body) {
+    const reader = res.body.getReader();
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > MAX_IMAGE_BYTES) {
+        await reader.cancel();
+        throw new Error(tooBig);
+      }
+      chunks.push(value);
+    }
+  }
+  if (size === 0) throw new Error("The source's image couldn't be downloaded: it was empty.");
+  const file = `source-${token}${ext}`;
+  await writeFile(join(dir, file), Buffer.concat(chunks));
+  return [{ file, kind: "image", caption: `via ${p.sourceName}` }];
 }
 
 /** A folder for one long job's work inside the draft's media folder: Claude writes there, the agent keeps what it needs. */

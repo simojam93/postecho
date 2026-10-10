@@ -3,8 +3,13 @@ import { LONG_STALE_CLAIM_MS, mediaKindsFor, mediaOf, STALE_CLAIM_MS } from "./m
 
 describe("media from a repo (2026-10-11)", () => {
   it("screenshots and a video only for a folder on this computer", () => {
-    expect(mediaKindsFor("folder")).toEqual(["images", "card", "screenshots", "video"]);
-    expect(mediaKindsFor("github")).toEqual(["images", "card"]);
+    expect(mediaKindsFor({ repo: "folder", sourceImage: false })).toEqual(["images", "card", "screenshots", "video"]);
+    expect(mediaKindsFor({ repo: "github", sourceImage: false })).toEqual(["images", "card"]);
+  });
+
+  it("a card for every post; the source's image when its source has one (2026-10-11)", () => {
+    expect(mediaKindsFor({ repo: null, sourceImage: false })).toEqual(["card"]);
+    expect(mediaKindsFor({ repo: null, sourceImage: true })).toEqual(["card", "source_image"]);
   });
 
   it("reads meta.media, leaving out anything that isn't an item", () => {

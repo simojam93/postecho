@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { CARD_SIZES, cardHtml, CHROME_MISSING, renderCardPng } from "./card.js";
 
-const base = { headline: "Ship the gate before the feature", repoName: "simojam93/jev-judge", ...CARD_SIZES.landscape };
+const base = { headline: "Ship the gate before the feature", footer: "simojam93/jev-judge", ...CARD_SIZES.landscape };
 
 describe("the card template (media from a repo, 2026-10-11)", () => {
   it("has the two sizes: 1600×900, and 1080×1350 for LinkedIn", () => {
@@ -26,14 +26,16 @@ describe("the card template (media from a repo, 2026-10-11)", () => {
     expect(html).not.toMatch(/orange|#f97316|#fb923c|#ea580c/i);
   });
 
-  it("leaves out what Claude didn't write", () => {
+  it("leaves out what Claude didn't write, and the footer when there's no name for it", () => {
     const html = cardHtml(base);
     expect(html).not.toContain('class="line"');
     expect(html).not.toContain('class="number"');
+    expect(cardHtml({ ...base, footer: "" })).not.toContain('class="footer"');
+    expect(cardHtml({ ...base, footer: "  " })).not.toContain('class="footer"');
   });
 
   it("escapes the words, so a post can't inject markup", () => {
-    const html = cardHtml({ ...base, headline: `<script>alert("x")</script> & co`, repoName: "a/<b>" });
+    const html = cardHtml({ ...base, headline: `<script>alert("x")</script> & co`, footer: "a/<b>" });
     expect(html).not.toContain("<script>alert");
     expect(html).toContain("&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt; &amp; co");
     expect(html).toContain("a/&lt;b&gt;");

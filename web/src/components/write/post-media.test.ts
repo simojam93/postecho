@@ -30,6 +30,17 @@ describe("Add media in Compose (media from a repo, 2026-10-11)", () => {
     const folder = view({ menuOpen: true, kinds: ["images", "card", "screenshots", "video"] });
     expect(folder).toContain(">Screenshots<");
     expect(folder).toContain(">A video<");
+    // A post from anywhere: a card, and its source's image when it has one (2026-10-11).
+    const video = view({ menuOpen: true, kinds: ["card", "source_image"] });
+    expect(video).toContain(">A card<");
+    expect(video).toContain(">The source&#x27;s image<");
+    expect(video).not.toContain("Images from the repo");
+  });
+
+  it("the source's image is one step: downloading it", () => {
+    const running = view({ job: { id: "j", kind: "post_media", status: "claimed", result: { progress: { kind: "post_media", phase: "saving" } }, createdAt: new Date().toISOString(), payload: { kind: "source_image" } } });
+    expect(running).toContain("Downloading the image");
+    expect(running).toContain("usually a few seconds");
   });
 
   it("Add media waits while the kinds load, or while media are being made", () => {

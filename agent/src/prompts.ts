@@ -581,9 +581,9 @@ export function mediaImagesPrompt(o: { repoName: string; postText: string }): st
 }
 
 /** card: the words of a card made from the post. */
-export function mediaCardPrompt(o: { repoName: string; postText: string }): string {
+export function mediaCardPrompt(o: { repoName?: string; sourceName?: string; postText: string }): string {
   return [
-    `This post is about the repository "${o.repoName}".`,
+    ...(o.repoName ? [`This post is about the repository "${o.repoName}".`] : o.sourceName ? [`This post comes from "${o.sourceName}".`] : []),
     ...postBlock(o.postText),
     "",
     "Write the words of a card that goes with it, shown as an image under the post:",

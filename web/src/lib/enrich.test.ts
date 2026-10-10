@@ -136,6 +136,16 @@ describe("enrich", () => {
     expect(r.content).toBe("Why things happen.");
   });
 
+  it("keeps an article's og:image as meta.imageUrl, only an https one (2026-10-11)", async () => {
+    const withImage = (src: string) => `<html><head><meta property="og:title" content="T" /><meta property="og:image" content="${src}" /></head></html>`;
+    const r = await enrich("https://example.com/a", fakeFetch({ "example.com/a": withImage("https://example.com/cover.png?w=1&amp;h=2") }));
+    expect(r.meta.imageUrl).toBe("https://example.com/cover.png?w=1&h=2");
+    const plain = await enrich("https://example.com/b", fakeFetch({ "example.com/b": withImage("http://example.com/cover.png") }));
+    expect(plain.meta).not.toHaveProperty("imageUrl");
+    const none = await enrich("https://example.com/post", fakeFetch({ "example.com/post": articleHtml }));
+    expect(none.meta).not.toHaveProperty("imageUrl");
+  });
+
   it("falls back to <title> and <meta name=description> when a page has no Open Graph tags", async () => {
     const plain = `<html><head><title>Do Things that Don&#x27;t Scale</title>
 <meta name="description" content="An essay about early startups."></head><body><p>Body text.</p></body></html>`;

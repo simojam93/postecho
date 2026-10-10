@@ -18,6 +18,7 @@ export const MEDIA_LABEL: Record<MediaKind, string> = {
   card: "A card",
   screenshots: "Screenshots",
   video: "A video",
+  source_image: "The source's image",
 };
 
 /** How long each kind usually takes (spec 2026-10-11). */
@@ -26,6 +27,7 @@ export const MEDIA_TYPICAL: Record<MediaKind, string> = {
   card: "usually under a minute",
   screenshots: "usually a few minutes",
   video: "usually 10–30 min",
+  source_image: "usually a few seconds",
 };
 
 /** Each kind's steps, in the order the agent reports their phases (agent/src/media/post-media.ts). */
@@ -34,11 +36,12 @@ const STEPS: Record<MediaKind, Array<[phase: string, label: string]>> = {
   card: [["making", "Writing the card"], ["saving", "Drawing it"]],
   screenshots: [["reading", "Opening the folder"], ["making", "Starting the app and taking screenshots"], ["saving", "Keeping the screenshots"]],
   video: [["reading", "Opening the folder"], ["making", "Making the video with brag-slim"], ["saving", "Keeping the video"]],
+  source_image: [["saving", "Downloading the image"]],
 };
 
 function kindOf(job: { payload?: Record<string, unknown> | null }): MediaKind {
   const kind = job.payload?.kind;
-  return kind === "images" || kind === "screenshots" || kind === "video" ? kind : "card";
+  return kind === "images" || kind === "screenshots" || kind === "video" || kind === "source_image" ? kind : "card";
 }
 
 /** A post_media job, step by step: waiting for the Mac, then the kind's steps up to the phase it reported. */
@@ -58,7 +61,7 @@ export function mediaSteps(job: Pick<JobInfo, "status" | "payload"> & { result?:
 const running = (job: JobInfo | null) => job?.status === "queued" || job?.status === "claimed";
 
 /**
- * A post's media (media from a repo, 2026-10-11), as the page shows them: Add media with the kinds
+ * A post's media (media from a repo, 2026-10-11; every post since), as the page shows them: Add media with the kinds
  * the post's source allows, the steps while a job runs, and the thumbnails, each with Keep or Show in
  * Finder, and Remove. Pure: PostMedia below fetches and acts.
  */
@@ -166,7 +169,7 @@ export function MediaView({
 type Loaded = { kinds: MediaKind[]; media: MediaItem[]; job: JobInfo | null };
 
 /**
- * Add media under a post from a repo (spec 2026-10-11): reads GET /api/drafts/:id/media, polls while
+ * Add media under a post (spec 2026-10-11): reads GET /api/drafts/:id/media, polls while
  * a media job runs and reloads when it ends; Keep and Remove go through PATCH /api/drafts/:id
  * (`media`), Remove also deletes the file through the agent, Show in Finder asks the agent.
  */

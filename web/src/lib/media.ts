@@ -1,20 +1,26 @@
 /**
  * Media from a repo (docs/specs/2026-10-11-media-from-a-repo-design.md): a post's images, card,
  * screenshots or video, made by the agent on the owner's computer and listed in the draft's
- * `meta.media`. Pure: the page uses it too.
+ * `meta.media`. Since 2026-10-11 a card for every post, and the source's preview image when it has
+ * one. Pure: the page uses it too.
  */
 
 /** What the owner can ask for, and what an item is. */
-export const MEDIA_KINDS = ["images", "card", "screenshots", "video"] as const;
+export const MEDIA_KINDS = ["images", "card", "screenshots", "video", "source_image"] as const;
 export type MediaKind = (typeof MEDIA_KINDS)[number];
 export type MediaItemKind = "image" | "card" | "screenshot" | "video";
 
 /** One file in `drafts.meta.media`. */
 export type MediaItem = { file: string; kind: MediaItemKind; caption?: string; kept: boolean; jobId: string };
 
-/** Screenshots and a video run the project's code: only for a folder on this computer, never a stranger's repository. */
-export function mediaKindsFor(sourceType: "folder" | "github"): MediaKind[] {
-  return sourceType === "folder" ? [...MEDIA_KINDS] : ["images", "card"];
+/**
+ * What a post can ask for. A card for every post. Images come from a post's repository. Screenshots and
+ * a video run the project's code: only for a folder on this computer, never a stranger's repository.
+ * The source's image when the post's source has one.
+ */
+export function mediaKindsFor({ repo, sourceImage }: { repo: "folder" | "github" | null; sourceImage: boolean }): MediaKind[] {
+  const kinds: MediaKind[] = repo === "folder" ? ["images", "card", "screenshots", "video"] : repo === "github" ? ["images", "card"] : ["card"];
+  return sourceImage ? [...kinds, "source_image"] : kinds;
 }
 
 /** The draft's media list, whatever `meta.media` holds: anything that isn't an item is left out. */

@@ -440,7 +440,7 @@ export function PostEditor({ draft, chain, voice, tab, onTab, onMutated, onRefin
       />
 
       {/* Media from a repo (2026-10-11): images, a card, screenshots or a video, when the owner asks. */}
-      {draft.idea?.kind === "repo_post" && <PostMedia draftId={draft.id} />}
+      <PostMedia draftId={draft.id} />
 
       <div className="flex flex-wrap items-center gap-2 pt-2">
         <button

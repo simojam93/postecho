@@ -1,7 +1,7 @@
 /**
  * A card made from a post (media from a repo, 2026-10-11): Claude writes the words, this template lays them
  * out, and the system Chrome draws it to a PNG. The look is neutral so the post is the owner's, not
- * PostEcho's: a dark background, light text, the repository's name small at the bottom, no logo.
+ * PostEcho's: a dark background, light text, where the post comes from small at the bottom, no logo.
  */
 
 export type CardSize = { width: number; height: number };
@@ -19,8 +19,8 @@ export type CardContent = {
   line?: string;
   /** A big number, like "3×" or "40 min". */
   number?: string;
-  /** "postecho" for a folder, "owner/name" for GitHub. */
-  repoName: string;
+  /** Small at the bottom: the repository ("postecho", "owner/name") or the post's source; empty for none. */
+  footer: string;
 };
 
 function escapeHtml(text: string): string {
@@ -43,6 +43,7 @@ export function cardHtml(card: CardContent & CardSize): string {
   const footSize = Math.round(width * (portrait ? 0.026 : 0.017));
   const number = card.number?.trim();
   const line = card.line?.trim();
+  const footer = card.footer.trim();
   return `<!doctype html>
 <html><head><meta charset="utf-8"><style>
   * { margin: 0; box-sizing: border-box; }
@@ -62,11 +63,10 @@ export function cardHtml(card: CardContent & CardSize): string {
   .number { font-size: ${numberSize}px; font-weight: 700; letter-spacing: -0.03em; line-height: 1; }
   .headline { font-size: ${headlineSize}px; font-weight: 650; letter-spacing: -0.02em; line-height: 1.12; max-width: 92%; }
   .line { font-size: ${lineSize}px; line-height: 1.35; color: #9a9ea6; max-width: 88%; }
-  .repo { position: absolute; left: ${pad}px; bottom: ${Math.round(pad * 0.6)}px; font-size: ${footSize}px; color: #6b7079; letter-spacing: 0.02em; }
+  .footer { position: absolute; left: ${pad}px; bottom: ${Math.round(pad * 0.6)}px; font-size: ${footSize}px; color: #6b7079; letter-spacing: 0.02em; }
 </style></head><body>
 ${number ? `  <div class="number">${escapeHtml(number)}</div>\n` : ""}  <div class="headline">${escapeHtml(card.headline.trim())}</div>
-${line ? `  <div class="line">${escapeHtml(line)}</div>\n` : ""}  <div class="repo">${escapeHtml(card.repoName)}</div>
-</body></html>`;
+${line ? `  <div class="line">${escapeHtml(line)}</div>\n` : ""}${footer ? `  <div class="footer">${escapeHtml(footer)}</div>\n` : ""}</body></html>`;
 }
 
 /** What the page shows when there's no Chrome to draw with. */

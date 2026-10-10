@@ -217,10 +217,13 @@ export async function enrich(url: string, fetcher: Fetcher = defaultFetcher): Pr
       // judge relevance against.
       const rawTitle = metaContent(head, "og:title") ?? titleTag(head);
       const rawDescription = metaContent(head, "og:description") ?? metaNameContent(head, "description") ?? bodyExcerpt(html);
+      // The article's preview image, https only: Compose can attach it with its credit (2026-10-11).
+      const image = decodeEntities(metaContent(head, "og:image")?.trim() ?? "");
       return {
         ...empty,
         title: rawTitle !== null ? decodeEntities(rawTitle) : null,
         content: rawDescription !== null ? decodeEntities(rawDescription) : null,
+        meta: image.startsWith("https://") && URL.canParse(image) ? { imageUrl: image } : {},
       };
     }
   } catch {
