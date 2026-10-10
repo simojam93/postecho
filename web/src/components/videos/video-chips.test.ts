@@ -20,5 +20,8 @@ describe("the Videos chips (2026-09-27: \"come per le ricerche in trends\")", ()
     expect(html).not.toContain("Video 3");
     expect(html).toContain("Show more (2)");
     expect(html.match(/aria-pressed="true"/g)).toHaveLength(1);
+    // The ☆ is From a repo's alone.
+    expect(html).not.toContain("☆");
+    expect(html).not.toContain("Keep it at the start");
   });
 });

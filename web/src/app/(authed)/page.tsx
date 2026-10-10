@@ -8,7 +8,7 @@ import { NewVideoForm } from "@/components/new-video-form";
 import { VideoChips } from "@/components/videos/video-chips";
 import { VideoIdeas } from "@/components/videos/video-ideas";
 import { RepoForm, repoSource } from "@/components/repos/repo-form";
-import { RepoChips } from "@/components/repos/repo-chips";
+import { RepoChips, sortRepos } from "@/components/repos/repo-chips";
 import { RepoPosts } from "@/components/repos/repo-posts";
 import { FirstSearchBanner } from "@/components/onboarding/first-search-banner";
 import { getFirstSearch, IDEAS_CHANGED_EVENT, subscribeFirstSearch } from "@/components/onboarding/first-search";
@@ -330,9 +330,31 @@ export default function FindIdeasPage() {
     }
   }
 
-  /** × on a repo chip: the source leaves the tab with its posts still to review; Liked ones stay. */
+  /** × on a repo chip: the source leaves the tab, unpinned, with its posts still to review; Liked ones stay. */
   async function removeRepo(repo: Idea) {
-    await Promise.all([repo, ...postsOfRepo(repo.id)].map((i) => setStatus(i.id, i.id === repo.id ? "dismissed" : "archived")));
+    await Promise.all([
+      repo.meta.favorite ? updateRepo(repo, { status: "dismissed", favorite: false }) : setStatus(repo.id, "dismissed"),
+      ...postsOfRepo(repo.id).map((i) => setStatus(i.id, "archived")),
+    ]);
+  }
+
+  /** ☆ on a repo chip, and × on a pinned one: meta.favorite through PATCH /api/ideas/:id; pinned sources come first. */
+  async function updateRepo(repo: Idea, change: { status?: IdeaStatus; favorite: boolean }) {
+    setIdeas((current) => current.map((i) => (i.id === repo.id
+      ? { ...i, status: change.status ?? i.status, meta: { ...i.meta, favorite: change.favorite } }
+      : i)));
+    const res = await fetch(`/api/ideas/${repo.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(change),
+    });
+    if (res.ok) {
+      setError(null);
+    } else {
+      console.error("failed to update the repo:", res.status);
+      setError("Failed to update idea.");
+      await load();
+    }
   }
 
   function onSearchActivity() {
@@ -412,13 +434,12 @@ export default function FindIdeasPage() {
   const activeVideo = videos.find((v) => v.id === selectedVideoId) ?? videos[0] ?? null;
   // From a repo, the same way: a chip per source, the latest used selected. Its posts add up over
   // several asks, so the latest ask comes first, each in Claude's order.
-  const usedAt = (i: Idea) => Date.parse(i.meta.usedAt ?? i.createdAt);
-  const repos = ideas.filter(isRepo).sort((a, b) => usedAt(b) - usedAt(a));
+  const repos = sortRepos(ideas.filter(isRepo));
   const postsOfRepo = (repoId: string) => ideas
     .filter((i) => i.kind === "repo_post" && i.status === "new" && i.meta.repoId === repoId)
     .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt) || (a.meta.order ?? 0) - (b.meta.order ?? 0));
   const repoCounts = Object.fromEntries(repos.map((r) => [r.id, postsOfRepo(r.id).length]));
-  // The chip clicked is also the form's source; with none clicked the latest still shows its posts.
+  // The chip clicked is also the form's source; with none clicked the first chip shows its posts.
   const selectedRepo = repos.find((r) => r.id === selectedRepoId) ?? null;
   const activeRepo = selectedRepo ?? repos[0] ?? null;
 
@@ -481,7 +502,8 @@ export default function FindIdeasPage() {
         {mode === "repo" && <RepoForm onCreated={onRepoCreated} repo={selectedRepo} onClear={() => setSelectedRepoId(null)} />}
         {mode === "repo" && (
           <RepoChips repos={repos} counts={repoCounts} selectedId={activeRepo?.id ?? null} onSelect={setSelectedRepoId}
-            onAgain={(repo) => void repoAgain(repo)} onRemove={(repo) => void removeRepo(repo)} againId={repoAgainId} />
+            onAgain={(repo) => void repoAgain(repo)} onRemove={(repo) => void removeRepo(repo)}
+            onFavorite={(repo) => void updateRepo(repo, { favorite: !repo.meta.favorite })} againId={repoAgainId} />
         )}
         {mode === "videos" && <NewVideoForm onSearched={onVideoPasted} />}
         {mode === "videos" && (

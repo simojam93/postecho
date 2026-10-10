@@ -32,9 +32,9 @@ export type Idea = {
     videoId?: string; order?: number; fromDescription?: boolean; format?: string;
     // A pasted video (api/videos/ideas): when it was pasted last — the Videos chips' order.
     pastedAt?: string;
-    // From a repo (2026-10-10): a source's type, its folder and when it was used last (the chips' order);
+    // From a repo (2026-10-10): a source's type, its folder, when it was used last and its ☆ (the chips' order);
     // a post's source (`format` is "x" | "linkedin" | "article" then).
-    sourceType?: string; path?: string; usedAt?: string; repoId?: string; repoName?: string;
+    sourceType?: string; path?: string; usedAt?: string; favorite?: boolean; repoId?: string; repoName?: string;
   };
 };
 

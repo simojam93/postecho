@@ -12,11 +12,11 @@ const VISIBLE_CHIPS = 3;
  * The Videos tab's row of pasted videos, by title, newest first: the one
  * selected shows its post ideas below (VideoIdeas); ↻ asks for new ideas, ×
  * removes the video. The same look and folding as Trends' searches strip.
- * From a repo's sources use it too (repos/repo-chips.tsx), with their own tips.
+ * From a repo's sources use it too (repos/repo-chips.tsx), with their own tips and a ☆ to pin one.
  */
 export function VideoChips({
   videos, counts, selectedId, onSelect, onAgain, onRemove, againId,
-  againTip = "Find new post ideas in this video", removeTip = "Remove this video; Liked ideas stay", quoted = true,
+  againTip = "Find new post ideas in this video", removeTip = "Remove this video; Liked ideas stay", quoted = true, onFavorite,
 }: {
   videos: Idea[];
   /** Ideas still to review, per video. */
@@ -32,6 +32,8 @@ export function VideoChips({
   removeTip?: string;
   /** The title in quotes, as a video's is. */
   quoted?: boolean;
+  /** A ☆ before the title that pins the chip (meta.favorite), ★ once pinned. Videos have none. */
+  onFavorite?: (video: Idea) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   if (videos.length === 0) return null;
@@ -46,10 +48,18 @@ export function VideoChips({
       {shown.map((video) => {
         const active = video.id === selectedId;
         const title = video.title ?? video.url ?? "Video";
+        const favorite = video.meta.favorite === true;
+        const favoriteTip = favorite ? "Unpin it" : "Keep it at the start";
         return (
           <span key={video.id} className={`inline-flex max-w-full items-center rounded-full border text-xs ${active ? "border-text-dim bg-surface-2 text-text" : "border-border text-text-dim"}`}>
+            {onFavorite && (
+              <button type="button" onClick={() => onFavorite(video)} data-tip={favoriteTip} aria-label={`${favoriteTip}: ${title}`}
+                className={`rounded-l-full py-1 pl-2.5 pr-0.5 hover:text-text ${favorite ? "text-text" : "text-text-dim"}`}>
+                {favorite ? "★" : "☆"}
+              </button>
+            )}
             <button type="button" onClick={() => onSelect(video.id)} aria-pressed={active} data-tip={title}
-              className="flex min-w-0 items-center rounded-l-full py-1 pl-3 pr-1 hover:text-text">
+              className={`flex min-w-0 items-center py-1 pr-1 hover:text-text ${onFavorite ? "pl-1" : "rounded-l-full pl-3"}`}>
               {/* A long title folds into its tooltip, so three chips keep to one line. */}
               <span className="max-w-[12rem] truncate">{quoted ? <>&ldquo;{title}&rdquo;</> : title}</span>
               <span className="shrink-0 whitespace-pre text-text-dim"> · {counts[video.id] ?? 0}</span>
