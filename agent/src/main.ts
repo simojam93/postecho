@@ -1,6 +1,8 @@
 import { createClaudeRunner } from "./claude.js";
 import { loadConfig } from "./config.js";
 import { HandlerDeps, SERVED_KINDS } from "./handlers.js";
+import { renderCardPng } from "./media/card.js";
+import { MEDIA_DIR } from "./media/paths.js";
 import { pickFolder } from "./pick-folder.js";
 import { createPostEchoClient } from "./postecho.js";
 import { resolveRepoOnThisComputer } from "./repo-source.js";
@@ -33,6 +35,7 @@ export async function runAgent(): Promise<void> {
     checkSlop: (text, platform) => client.slopCheck(text, platform),
     resolveRepo: resolveRepoOnThisComputer,
     pickFolder: () => pickFolder(),
+    media: { baseDir: MEDIA_DIR, renderCard: (html, size, out) => renderCardPng(html, size, out) },
   };
   const worker = createWorker({ client, runner, deps, kinds: SERVED_KINDS, pollWaitSeconds: config.pollWaitSeconds });
 

@@ -43,6 +43,7 @@ import {
 import { fetchTranscript as defaultFetchTranscript, normalizeTranscript, TranscriptUnavailable } from "./transcript.js";
 import type { PickFolderResult } from "./pick-folder.js";
 import type { RepoSource } from "./repo-source.js";
+import { handlePostMedia, type MediaDeps } from "./media/post-media.js";
 
 /** What every handler needs, injected so tests can pass plain fakes instead of the real network/CLI/library. */
 export type RunClaudeJsonFn = <T>(opts: {
@@ -83,6 +84,8 @@ export type HandlerDeps = {
   resolveRepo?: (source: RepoSource) => Promise<{ dir: string; name: string }>;
   /** pick_folder: the OS folder picker on this computer (pick-folder.ts). */
   pickFolder?: () => Promise<PickFolderResult>;
+  /** post_media: the media folder and the card renderer (media/post-media.ts). */
+  media?: MediaDeps;
 };
 
 const CountSchema = z.coerce.number().int().min(1).max(25).catch(3);
@@ -733,6 +736,7 @@ export const HANDLERS: Record<string, Handler> = {
   learn_style: handleLearnStyle,
   repo_posts: handleRepoPosts,
   pick_folder: handlePickFolder,
+  post_media: handlePostMedia,
 };
 
 export const SERVED_KINDS = Object.keys(HANDLERS);

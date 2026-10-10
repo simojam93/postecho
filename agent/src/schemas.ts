@@ -361,3 +361,104 @@ export function parseRepoPosts(format: RepoFormat): (value: unknown) => { posts:
     return { posts: kept };
   };
 }
+
+// ---------------------------------------------------------------------------
+// Media from a repo (2026-10-11): what Claude answers for each kind of
+// post_media job (media/post-media.ts). The files themselves are the agent's.
+// ---------------------------------------------------------------------------
+
+const MEDIA_MAX_IMAGES = 6;
+const MEDIA_MAX_SCREENSHOTS = 4;
+const CARD_HEADLINE_MAX_CHARS = 60;
+const CARD_LINE_MAX_CHARS = 140;
+const CARD_NUMBER_MAX_CHARS = 12;
+
+/** { images: [{ path, reason }] }: images already in the repository, best first. None is an answer too. */
+export const MEDIA_IMAGES_SCHEMA = {
+  type: "object",
+  properties: {
+    images: {
+      type: "array",
+      maxItems: MEDIA_MAX_IMAGES,
+      items: {
+        type: "object",
+        properties: { path: { type: "string", minLength: 1, maxLength: 500 }, reason: { type: "string", maxLength: 200 } },
+        required: ["path", "reason"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["images"],
+  additionalProperties: false,
+} as const;
+
+export function parseMediaImages(value: unknown): { images: Array<{ path: string; reason: string }> } {
+  const { images } = z.object({
+    images: z.array(z.object({ path: z.string().trim().min(1).max(500), reason: z.string().trim().max(200) })),
+  }).parse(value);
+  return { images: images.slice(0, MEDIA_MAX_IMAGES) };
+}
+
+/** { headline, line?, number? }: a card's words. */
+export const MEDIA_CARD_SCHEMA = {
+  type: "object",
+  properties: {
+    headline: { type: "string", minLength: 1, maxLength: CARD_HEADLINE_MAX_CHARS },
+    line: { type: "string", maxLength: CARD_LINE_MAX_CHARS },
+    number: { type: "string", maxLength: CARD_NUMBER_MAX_CHARS },
+  },
+  required: ["headline"],
+  additionalProperties: false,
+} as const;
+
+export function parseMediaCard(value: unknown): { headline: string; line?: string; number?: string } {
+  const card = z.object({
+    headline: z.string().trim().min(1).max(CARD_HEADLINE_MAX_CHARS),
+    line: z.string().trim().max(CARD_LINE_MAX_CHARS).optional(),
+    number: z.string().trim().max(CARD_NUMBER_MAX_CHARS).optional(),
+  }).parse(value);
+  return {
+    headline: card.headline,
+    ...(card.line ? { line: card.line } : {}),
+    ...(card.number ? { number: card.number } : {}),
+  };
+}
+
+/** { screenshots: [{ file, caption }], note? }: the PNGs Claude saved, and why there are none when there are none. */
+export const MEDIA_SCREENSHOTS_SCHEMA = {
+  type: "object",
+  properties: {
+    screenshots: {
+      type: "array",
+      maxItems: MEDIA_MAX_SCREENSHOTS,
+      items: {
+        type: "object",
+        properties: { file: { type: "string", minLength: 1, maxLength: 200 }, caption: { type: "string", maxLength: 200 } },
+        required: ["file", "caption"],
+        additionalProperties: false,
+      },
+    },
+    note: { type: "string", maxLength: 500 },
+  },
+  required: ["screenshots"],
+  additionalProperties: false,
+} as const;
+
+export function parseMediaScreenshots(value: unknown): { screenshots: Array<{ file: string; caption: string }>; note?: string } {
+  return z.object({
+    screenshots: z.array(z.object({ file: z.string().trim().min(1).max(200), caption: z.string().trim().max(200) })),
+    note: z.string().trim().max(500).optional(),
+  }).parse(value);
+}
+
+/** { summary }: what the video shows, or why it wasn't made. */
+export const MEDIA_VIDEO_SCHEMA = {
+  type: "object",
+  properties: { summary: { type: "string", maxLength: 500 } },
+  required: ["summary"],
+  additionalProperties: false,
+} as const;
+
+export function parseMediaVideo(value: unknown): { summary: string } {
+  return z.object({ summary: z.string().trim().max(500) }).parse(value);
+}

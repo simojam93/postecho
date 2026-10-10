@@ -545,3 +545,84 @@ export function repoPostsPrompt(o: RepoPostsPromptOptions): string {
   ];
   return lines.join("\n");
 }
+
+// ---------------------------------------------------------------------------
+// Media from a repo (2026-10-11): one post's images, card, screenshots or
+// video (media/post-media.ts). Claude never writes the post here: it picks,
+// words or records what goes with it.
+// ---------------------------------------------------------------------------
+
+/** The system prompt of every media call: short, since the post is already written. */
+export function mediaSystemPrompt(): string {
+  return [
+    "You make the media that goes with one person's post on X or LinkedIn: images, a card, screenshots or a short video.",
+    "The post is written. Never change it, and never invent features, numbers or results the repository doesn't show.",
+    "Respond with JSON only, matching the schema exactly: no prose, no markdown code fences, no explanation.",
+  ].join("\n");
+}
+
+function postBlock(postText: string): string[] {
+  return ["The post:", "---", postText.trim(), "---"];
+}
+
+/** images: find images already in the repository that fit the post. */
+export function mediaImagesPrompt(o: { repoName: string; postText: string }): string {
+  return [
+    `You are in the repository "${o.repoName}", your working directory. Explore it with Read, Glob and Grep.`,
+    ...postBlock(o.postText),
+    "",
+    "Find up to 6 images already in the repository that would go well with this post, best first: screenshots, diagrams, demos or product shots in the README, docs, assets, public or screenshots folders.",
+    "Only PNG, JPEG, GIF or WebP files. Leave out icons, favicons, badges, logos and tiny UI sprites.",
+    "Give each one's path relative to the repository's root, and one short line on why it fits the post.",
+    "When none fits, return an empty list.",
+    "",
+    'Return a JSON object: { "images": [ { "path": "docs/screen.png", "reason": "..." } ] }.',
+  ].join("\n");
+}
+
+/** card: the words of a card made from the post. */
+export function mediaCardPrompt(o: { repoName: string; postText: string }): string {
+  return [
+    `This post is about the repository "${o.repoName}".`,
+    ...postBlock(o.postText),
+    "",
+    "Write the words of a card that goes with it, shown as an image under the post:",
+    "- headline: the post's point in under 60 characters, plain and specific, no clickbait",
+    "- line (optional): one supporting sentence under 140 characters",
+    "- number (optional): one figure from the post, at most 12 characters (like 40 min or 3×), only when the post has one",
+    "No hashtags, no emoji, no quotes around the headline. Write in English.",
+    "",
+    'Return a JSON object: { "headline": "...", "line": "...", "number": "..." }.',
+  ].join("\n");
+}
+
+/** screenshots: start the owner's app and record the screens the post talks about. */
+export function mediaScreenshotsPrompt(o: { repoName: string; postText: string; outDir: string }): string {
+  return [
+    `You are in "${o.repoName}", the owner's own project, your working directory.`,
+    ...postBlock(o.postText),
+    "",
+    "Take up to 4 screenshots of the app that show what the post talks about:",
+    "1. Read the README and the package scripts to learn how to start the app locally, and start it the way they say (install dependencies first when needed). Run long-lived servers in the background.",
+    "2. Open the screens the post talks about with Playwright, for example `npx -y playwright screenshot --channel=chrome --viewport-size=1440,900 <url> <file>`, or a short Node script with playwright when a screen needs a click first.",
+    `3. Save each one as a PNG named screenshot-1.png, screenshot-2.png and so on, in ${o.outDir} and nowhere else.`,
+    "4. Then stop everything you started: every server and browser you launched.",
+    "Never change, commit or delete the project's own files. Never sign in to an account, enter a password or buy anything. When the app can't start (a missing secret, a database that isn't running), stop and say why in note.",
+    "",
+    'Return a JSON object: { "screenshots": [ { "file": "screenshot-1.png", "caption": "what it shows" } ], "note": "only when something stopped you" }.',
+  ].join("\n");
+}
+
+/** video: the owner's brag-slim skill on their folder, from the post's angle. */
+export function mediaVideoPrompt(o: { repoName: string; postText: string; outDir: string }): string {
+  return [
+    `You are in "${o.repoName}", the owner's own project, your working directory.`,
+    ...postBlock(o.postText),
+    "",
+    "Use the brag-slim skill to make a short launch video of this project. Its angle is the post above: the video shows what the post says.",
+    `Write the skill's output into ${o.outDir} instead of the project folder: brag.mp4 (the video) and brag.jpg (its cover), with every intermediate file inside ${o.outDir} too.`,
+    "Never change, commit or delete the project's own files. Don't publish or upload anything. Stop every server and browser you started when you're done.",
+    "",
+    'Return a JSON object: { "summary": "what the video shows, or why it could not be made" }.',
+  ].join("\n");
+}
