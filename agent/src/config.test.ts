@@ -13,7 +13,29 @@ describe("loadConfig", () => {
       pollWaitSeconds: 0,
       pollIdleSeconds: 5,
       claudeTimeoutMs: 180000,
+      wakePort: 47321,
+      awakeMinutes: 10,
+      idleCheckMinutes: 0,
     });
+  });
+
+  it("reads the wake settings, with 0 turning the wake server off", () => {
+    const config = loadConfig({
+      AGENT_TOKEN: "t",
+      AGENT_WAKE_PORT: "0",
+      AGENT_AWAKE_MINUTES: "3",
+      AGENT_IDLE_CHECK_MINUTES: "30",
+    } as NodeJS.ProcessEnv);
+
+    expect(config.wakePort).toBe(0);
+    expect(config.awakeMinutes).toBe(3);
+    expect(config.idleCheckMinutes).toBe(30);
+  });
+
+  it("rejects a wake port out of range and an awake time under a minute", () => {
+    expect(() => loadConfig({ AGENT_TOKEN: "t", AGENT_WAKE_PORT: "70000" } as NodeJS.ProcessEnv)).toThrow(ConfigError);
+    expect(() => loadConfig({ AGENT_TOKEN: "t", AGENT_AWAKE_MINUTES: "0" } as NodeJS.ProcessEnv)).toThrow(ConfigError);
+    expect(() => loadConfig({ AGENT_TOKEN: "t", AGENT_IDLE_CHECK_MINUTES: "-1" } as NodeJS.ProcessEnv)).toThrow(ConfigError);
   });
 
   it("honors overrides and coerces numeric strings", () => {

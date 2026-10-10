@@ -15,6 +15,10 @@ const EnvSchema = z.object({
   POLL_WAIT_SECONDS: z.coerce.number().int().min(0).max(25).default(0),
   POLL_IDLE_SECONDS: z.coerce.number().int().min(1).max(300).default(5),
   CLAUDE_TIMEOUT_MS: z.coerce.number().int().positive().default(180000),
+  // The page wakes the agent on this port of 127.0.0.1; 0 turns that off and the agent polls instead.
+  AGENT_WAKE_PORT: z.coerce.number().int().min(0).max(65535).default(47321),
+  AGENT_AWAKE_MINUTES: z.coerce.number().int().min(1).max(24 * 60).default(10),
+  AGENT_IDLE_CHECK_MINUTES: z.coerce.number().int().min(0).max(24 * 60).default(0),
 });
 
 export type Config = {
@@ -26,6 +30,12 @@ export type Config = {
   /** The pause after a claim that found nothing, before asking again. */
   pollIdleSeconds: number;
   claudeTimeoutMs: number;
+  /** The local wake server's port, or 0 to poll as before (POLL_WAIT_SECONDS, POLL_IDLE_SECONDS). */
+  wakePort: number;
+  /** How long the agent stays awake after the page's last request. */
+  awakeMinutes: number;
+  /** How often the asleep agent claims anyway; 0 means never. */
+  idleCheckMinutes: number;
 };
 
 /**
@@ -59,5 +69,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     pollWaitSeconds: e.POLL_WAIT_SECONDS,
     pollIdleSeconds: e.POLL_IDLE_SECONDS,
     claudeTimeoutMs: e.CLAUDE_TIMEOUT_MS,
+    wakePort: e.AGENT_WAKE_PORT,
+    awakeMinutes: e.AGENT_AWAKE_MINUTES,
+    idleCheckMinutes: e.AGENT_IDLE_CHECK_MINUTES,
   };
 }
