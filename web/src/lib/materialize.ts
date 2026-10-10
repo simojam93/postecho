@@ -402,7 +402,8 @@ const REPO_POST_BY_FORMAT = {
  * The posts become repo_post rows under their source (the `repo` idea), in Claude's order
  * (meta.order), with the format, the article's title (also the row's title) and the repo's name.
  * Use keeps one as the post's version (POST /api/drafts/from-idea). A new batch for the same
- * source archives its posts still unreviewed; Liked ones stay. Once per job.
+ * source adds to its posts still unreviewed instead of replacing them, so several asks in a row
+ * add up (owner, 2026-10-10). Once per job.
  */
 async function materializeRepoPosts(db: typeof Db, job: MaterializeJob, result: unknown): Promise<MaterializeOutcome> {
   const parsed = RepoPostsResult.safeParse(result);
@@ -424,11 +425,6 @@ async function materializeRepoPosts(db: typeof Db, job: MaterializeJob, result: 
   const [already] = await db.select({ id: ideas.id }).from(ideas).where(sql`${ideas.meta}->>'jobId' = ${job.id}`).limit(1);
   if (already) return { ok: true };
 
-  await db.update(ideas).set({ status: "archived" }).where(and(
-    eq(ideas.kind, "repo_post"),
-    eq(ideas.status, "new"),
-    sql`${ideas.meta}->>'repoId' = ${repo.id}`,
-  ));
   await db.insert(ideas).values(posts.map((post, order) => ({
     kind: "repo_post" as const,
     source: "manual" as const,

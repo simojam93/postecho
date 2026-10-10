@@ -509,7 +509,7 @@ describe("materialize — repo_posts (posts from a repo, 2026-10-10)", () => {
     expect(row.meta).toMatchObject({ format: "article", title: "What we learned" });
   });
 
-  it("a new batch for the repo archives its unreviewed posts, keeps the Liked ones and leaves other repos alone", async () => {
+  it("a new batch for the repo keeps the earlier unreviewed posts, so several asks add up (owner, 2026-10-10)", async () => {
     const db = await createTestDb();
     const repo = await repoIdea(db);
     const other = await repoIdea(db, "file:///Users/me/dev/other");
@@ -518,7 +518,7 @@ describe("materialize — repo_posts (posts from a repo, 2026-10-10)", () => {
     const [a] = (await posts(db)).filter((r) => r.content === "A");
     await db.update(ideas).set({ status: "kept" }).where(eq(ideas.id, a.id));
     await materialize(db as never, repoJob("00000000-0000-4000-8000-000000000015", repo.id, "x"), { posts: [{ text: "C" }], repoName: "a/b" });
-    expect((await posts(db)).map((r) => [r.content, r.status]).sort()).toEqual([["A", "kept"], ["B", "archived"], ["C", "new"], ["O", "new"]]);
+    expect((await posts(db)).map((r) => [r.content, r.status]).sort()).toEqual([["A", "kept"], ["B", "new"], ["C", "new"], ["O", "new"]]);
   });
 
   it("drops posts out of the format's limits, and refuses a result with none left", async () => {

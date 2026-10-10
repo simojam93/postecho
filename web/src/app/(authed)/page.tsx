@@ -412,12 +412,13 @@ export default function FindIdeasPage() {
     .sort((a, b) => (b.meta.rank ?? -1) - (a.meta.rank ?? -1) || (a.meta.order ?? 0) - (b.meta.order ?? 0));
   const videoCounts = Object.fromEntries(videos.map((v) => [v.id, ideasOfVideo(v.id).length]));
   const activeVideo = videos.find((v) => v.id === selectedVideoId) ?? videos[0] ?? null;
-  // From a repo, the same way: a chip per source, the latest used selected, its posts in Claude's order.
+  // From a repo, the same way: a chip per source, the latest used selected. Its posts add up over
+  // several asks, so the latest ask comes first, each in Claude's order.
   const usedAt = (i: Idea) => Date.parse(i.meta.usedAt ?? i.createdAt);
   const repos = ideas.filter(isRepo).sort((a, b) => usedAt(b) - usedAt(a));
   const postsOfRepo = (repoId: string) => ideas
     .filter((i) => i.kind === "repo_post" && i.status === "new" && i.meta.repoId === repoId)
-    .sort((a, b) => (a.meta.order ?? 0) - (b.meta.order ?? 0));
+    .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt) || (a.meta.order ?? 0) - (b.meta.order ?? 0));
   const repoCounts = Object.fromEntries(repos.map((r) => [r.id, postsOfRepo(r.id).length]));
   const activeRepo = repos.find((r) => r.id === selectedRepoId) ?? repos[0] ?? null;
 
