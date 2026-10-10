@@ -20,6 +20,8 @@ export type Draft = {
   /** An X article's title and body (posts from a repo, 2026-10-10); null on X and LinkedIn posts. */
   articleTitle?: string | null;
   articleText?: string | null;
+  /** When Ready put it in Schedule's list (schedule in a row, 2026-10-10); null while in Compose. */
+  readyAt?: string | null;
   status: DraftStatus;
   favorite: boolean;
   parentId: string | null;

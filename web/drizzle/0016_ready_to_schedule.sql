@@ -1,0 +1,1 @@
+ALTER TABLE "drafts" ADD COLUMN "ready_at" timestamp with time zone;

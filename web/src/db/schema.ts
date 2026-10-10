@@ -111,6 +111,10 @@ export const drafts = pgTable("drafts", {
   // xText/linkedinText. Null on every other draft.
   articleTitle: text("article_title"),
   articleText: text("article_text"),
+  // Ready to schedule (schedule in a row, 2026-10-10): set by Compose's Ready, cleared by Back to Compose
+  // and once the post is scheduled on every platform it has (lib/schedule.ts's markPostedManually). A
+  // ready post leaves Compose's strip and waits in Schedule's list, oldest first. Null on every other draft.
+  readyAt: timestamp("ready_at", { withTimezone: true }),
   // `jobId` (M2 agent+generation, 2026-09-22): the generate_from_video /
   // generate_from_idea job whose result produced this draft. Lets the result
   // handler (materialize.ts, task A3) check "have drafts for this jobId

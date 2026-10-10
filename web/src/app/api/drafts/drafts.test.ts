@@ -487,3 +487,10 @@ describe("DELETE /api/drafts?ideaId=", () => {
     expect(await res.json()).toEqual({ ideaId: "00000000-0000-0000-0000-000000000000", discarded: 0 });
   });
 });
+
+describe("ready to schedule (schedule in a row, 2026-10-10)", () => {
+  it("a draft is not ready until the owner says so: readyAt starts null", async () => {
+    const [draft] = await state.db!.insert(drafts).values({ xText: "A post" }).returning();
+    expect(draft.readyAt).toBeNull();
+  });
+});
