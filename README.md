@@ -107,6 +107,7 @@ flowchart LR
 ```
 
 The web app queues jobs. An agent on your computer runs Claude Code and returns the results.
+The page wakes the agent on your computer when it creates a job, so the agent sends nothing while PostEcho is closed.
 Keep that agent running for writing jobs, including when the web app is hosted online.
 Text used for writing goes to Claude; enabling Jev sends text for evaluation to TypeSafe.
 
