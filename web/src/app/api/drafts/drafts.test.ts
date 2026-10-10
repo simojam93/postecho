@@ -289,6 +289,7 @@ describe("POST /api/drafts/:id/revise", () => {
     expect(res.status).toBe(201);
     const body = await res.json();
     expect(body.job.kind).toBe("revise_draft");
+    expect(res.headers.get("X-PostEcho-Job")).toBe(body.job.id);
     expect(body.job.payload).toMatchObject({
       draftId: draft.id, xText: "original x", linkedinText: "original linkedin", instruction: "make it punchier",
     });
@@ -381,6 +382,7 @@ describe("POST /api/drafts/:id/image-prompt", () => {
     expect(res.status).toBe(201);
     const body = await res.json();
     expect(body.job.kind).toBe("image_prompt");
+    expect(res.headers.get("X-PostEcho-Job")).toBe(body.job.id);
     expect(body.job.payload).toMatchObject({
       draftId: draft.id, xText: "hi", linkedinText: "hello", imageSpecs: "16:9, minimalist, no stock photos",
     });

@@ -74,6 +74,7 @@ describe("POST /api/drafts/from-idea", () => {
     expect(res.status).toBe(201);
     const body = await res.json();
     expect(body.read).toEqual(["article", "discussion"]);
+    expect(res.headers.get("X-PostEcho-Job")).toBe(body.job.id);
     expect(vi.mocked(deepRead)).toHaveBeenCalledTimes(1);
     expect(vi.mocked(deepRead).mock.calls[0][0]).toMatchObject({ kind: "hackernews", url: HN_URL });
 
@@ -282,6 +283,7 @@ describe("POST /api/drafts/from-idea", () => {
     const res = await POST(req({ ideaId: topic.id, instructions: "shorter" }));
     expect(res.status).toBe(201);
     const { job } = await res.json();
+    expect(res.headers.get("X-PostEcho-Job")).toBe(job.id);
     expect(job.kind).toBe("generate_from_video");
     expect(job.payload).toEqual({
       ideaId: topic.id,
@@ -313,6 +315,7 @@ describe("POST /api/drafts/from-idea", () => {
     const res = await POST(req({ ideaId: video.id }));
     expect(res.status).toBe(201);
     const { job } = await res.json();
+    expect(res.headers.get("X-PostEcho-Job")).toBe(job.id);
     expect(job.kind).toBe("generate_from_video");
     expect(job.payload).toEqual({ ideaId: video.id, url: "https://www.youtube.com/watch?v=abc", instructions: "", count: 3, originalLanguage: false, voice: "reaction" });
     expect(vi.mocked(deepRead)).not.toHaveBeenCalled();

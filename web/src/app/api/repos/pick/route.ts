@@ -2,6 +2,7 @@ import { db } from "@/db";
 import { jobs } from "@/db/schema";
 import { agentServes, UPDATE_AGENT_ERROR } from "@/lib/agent-kinds";
 import { requireSession } from "@/lib/session";
+import { jobCreated } from "@/lib/job-header";
 
 /**
  * POST /api/repos/pick (posts from a repo, 2026-10-10)
@@ -17,7 +18,7 @@ export async function POST() {
   try {
     if (!(await agentServes("pick_folder"))) return Response.json({ error: UPDATE_AGENT_ERROR }, { status: 409 });
     const [job] = await db.insert(jobs).values({ kind: "pick_folder", payload: {} }).returning();
-    return Response.json({ jobId: job.id }, { status: 201 });
+    return jobCreated({ jobId: job.id }, job.id);
   } catch (err) {
     console.error(err);
     return Response.json({ error: "internal error" }, { status: 500 });

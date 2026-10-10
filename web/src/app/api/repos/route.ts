@@ -5,6 +5,7 @@ import { ideas, jobs } from "@/db/schema";
 import { agentServes, UPDATE_AGENT_ERROR } from "@/lib/agent-kinds";
 import { normalizeRepoSource, repoIdeaUrl, repoTitle, type RepoSource } from "@/lib/repo-source";
 import { requireSession } from "@/lib/session";
+import { jobCreated } from "@/lib/job-header";
 
 /** How many posts one Create may ask for, and how many by default. */
 export const REPO_POSTS_MAX = 6;
@@ -79,7 +80,7 @@ export async function POST(request: Request) {
       kind: "repo_posts",
       payload: { ideaId: repo.id, source, brief: brief.trim(), format, count },
     }).returning();
-    return Response.json({ ideaId: repo.id, jobId: job.id }, { status: 201 });
+    return jobCreated({ ideaId: repo.id, jobId: job.id }, job.id);
   } catch (err) {
     console.error(err);
     return Response.json({ error: "internal error" }, { status: 500 });

@@ -3,6 +3,7 @@ import { jobs } from "@/db/schema";
 import { requireSession } from "@/lib/session";
 import { inspirationForAnalysis } from "@/lib/library";
 import { getSetting } from "@/lib/settings";
+import { jobCreated } from "@/lib/job-header";
 
 const MIN_TOTAL_EXAMPLES = 3;
 
@@ -58,7 +59,7 @@ export async function POST() {
       payload: { toneExamplesX, toneExamplesLinkedin, toneForm, inspiration },
     }).returning();
 
-    return Response.json({ job }, { status: 201 });
+    return jobCreated({ job }, job.id);
   } catch (e) {
     console.error(e);
     return Response.json({ error: "internal error" }, { status: 500 });

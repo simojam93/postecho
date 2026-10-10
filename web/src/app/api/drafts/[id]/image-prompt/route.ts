@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { drafts, jobs } from "@/db/schema";
 import { requireSession } from "@/lib/session";
 import { getSetting } from "@/lib/settings";
+import { jobCreated } from "@/lib/job-header";
 
 /**
  * POST /api/drafts/:id/image-prompt
@@ -37,7 +38,7 @@ export async function POST(
       payload: { draftId: draft.id, xText: draft.xText, linkedinText: draft.linkedinText, imageSpecs },
     }).returning();
 
-    return Response.json({ job }, { status: 201 });
+    return jobCreated({ job }, job.id);
   } catch (e) {
     console.error(e);
     return Response.json({ error: "internal error" }, { status: 500 });

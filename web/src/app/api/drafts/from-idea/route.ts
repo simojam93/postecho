@@ -7,6 +7,7 @@ import { isVideoPost } from "@/lib/video-post";
 import { voiceOfIdea } from "@/lib/voice";
 import { withXAuthor } from "@/lib/x-handles";
 import { requireSession } from "@/lib/session";
+import { jobCreated } from "@/lib/job-header";
 
 // The deep read below makes one or two bounded third-party requests (6 s
 // each) before the job is enqueued; well under this, but above the default.
@@ -162,7 +163,7 @@ export async function POST(request: Request) {
         },
       }).returning();
       await db.update(ideas).set({ status: "used" }).where(eq(ideas.id, idea.id));
-      return Response.json({ job, read: [] }, { status: 201 });
+      return jobCreated({ job, read: [] }, job.id);
     }
 
     if (idea.kind === "youtube" && idea.url) {
@@ -178,7 +179,7 @@ export async function POST(request: Request) {
         },
       }).returning();
       await db.update(ideas).set({ status: "used" }).where(eq(ideas.id, idea.id));
-      return Response.json({ job, read: [] }, { status: 201 });
+      return jobCreated({ job, read: [] }, job.id);
     }
 
     const stored = {
@@ -219,7 +220,7 @@ export async function POST(request: Request) {
       .set(read ? { status: "used", ...deepReadPatch(idea, read) } : { status: "used" })
       .where(eq(ideas.id, idea.id));
 
-    return Response.json({ job, read: read?.parts ?? stored.parts }, { status: 201 });
+    return jobCreated({ job, read: read?.parts ?? stored.parts }, job.id);
   } catch (e) {
     console.error(e);
     return Response.json({ error: "internal error" }, { status: 500 });

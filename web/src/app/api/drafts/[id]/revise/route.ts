@@ -5,6 +5,7 @@ import { drafts, ideas, jobs } from "@/db/schema";
 import { requireSession } from "@/lib/session";
 import { voiceOfIdea, type Voice } from "@/lib/voice";
 import { withXAuthor } from "@/lib/x-handles";
+import { jobCreated } from "@/lib/job-header";
 
 // The source an edit is written against: the idea's full read when there is one, bounded.
 const SOURCE_MAX_CHARS = 8000;
@@ -114,7 +115,7 @@ export async function POST(
       },
     }).returning();
 
-    return Response.json({ job }, { status: 201 });
+    return jobCreated({ job }, job.id);
   } catch (e) {
     console.error(e);
     return Response.json({ error: "internal error" }, { status: 500 });

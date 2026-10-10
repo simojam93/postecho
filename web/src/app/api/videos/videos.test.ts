@@ -30,6 +30,7 @@ it("creates a youtube idea and enqueues generate_from_video", async () => {
   expect(ideaRows).toHaveLength(1);
   expect(jobRows).toHaveLength(1);
   expect(jobRows[0].kind).toBe("generate_from_video");
+  expect(res.headers.get("X-PostEcho-Job")).toBe(jobRows[0].id);
   expect(jobRows[0].payload).toMatchObject({ url: "https://youtu.be/abc", count: 5, ideaId: ideaRows[0].id });
 });
 

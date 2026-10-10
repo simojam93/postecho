@@ -28,6 +28,7 @@ describe("POST /api/repos", () => {
     expect(repo).toMatchObject({ kind: "repo", source: "manual", status: "new", url: "file:///Users/me/dev/postecho", title: "postecho" });
     expect(repo.meta).toMatchObject({ sourceType: "folder" });
     const [job] = await state.db!.select().from(jobs);
+    expect(res.headers.get("X-PostEcho-Job")).toBe(job.id);
     expect(body).toEqual({ ideaId: repo.id, jobId: job.id });
     expect(job.kind).toBe("repo_posts");
     expect(job.payload).toEqual({
@@ -107,6 +108,7 @@ describe("POST /api/repos/pick", () => {
     expect(res.status).toBe(201);
     const [job] = await state.db!.select().from(jobs);
     expect(job).toMatchObject({ kind: "pick_folder", payload: {}, status: "queued" });
+    expect(res.headers.get("X-PostEcho-Job")).toBe(job.id);
     expect(await res.json()).toEqual({ jobId: job.id });
   });
 

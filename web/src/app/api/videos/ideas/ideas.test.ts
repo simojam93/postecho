@@ -28,6 +28,7 @@ it("saves the video and asks the Mac for a dozen post ideas from its transcript 
   expect(video).toMatchObject({ kind: "youtube", source: "manual", status: "new", title: "Intervista a Alberto Dalmasso" });
   const [job] = await state.db!.select().from(jobs);
   expect(VIDEO_IDEAS_COUNT).toBe(12);
+  expect(res.headers.get("X-PostEcho-Job")).toBe(job.id);
   expect(job).toMatchObject({ kind: "video_ideas", payload: { ideaId: video.id, url: "https://www.youtube.com/watch?v=abc", count: 12 } });
 });
 

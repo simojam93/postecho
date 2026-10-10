@@ -300,6 +300,7 @@ describe("POST /api/settings/analyze-style", () => {
     expect(res.status).toBe(201);
     const body = await res.json();
     expect(body.job.kind).toBe("analyze_style");
+    expect(res.headers.get("X-PostEcho-Job")).toBe(body.job.id);
     expect(body.job.payload).toMatchObject({
       toneExamplesX: "post one\n\npost two\n\npost three",
       toneExamplesLinkedin: "",

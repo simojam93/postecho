@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { ideas, jobs } from "@/db/schema";
 import { enrich } from "@/lib/enrich";
 import { requireSession } from "@/lib/session";
+import { jobCreated } from "@/lib/job-header";
 
 const Body = z.object({
   url: z.url(),
@@ -55,7 +56,7 @@ export async function POST(request: Request) {
         },
       }).returning();
 
-      return Response.json(existingIdea ? { idea, job, existingIdea: true } : { idea, job }, { status: 201 });
+      return jobCreated(existingIdea ? { idea, job, existingIdea: true } : { idea, job }, job.id);
     } catch (e) {
       console.error(e);
       // neon-http has no `.transaction()` (see src/db/index.ts), so this two-step

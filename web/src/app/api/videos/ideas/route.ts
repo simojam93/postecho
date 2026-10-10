@@ -6,6 +6,7 @@ import { serviceEnv } from "@/lib/connections";
 import { enrich } from "@/lib/enrich";
 import { videoDescriptionFor } from "@/lib/sources/youtube";
 import { requireSession } from "@/lib/session";
+import { jobCreated } from "@/lib/job-header";
 
 /** Post ideas per video: six shown, six behind Show more (owner, 2026-09-27: "at least 6 best and 6 more"). */
 export const VIDEO_IDEAS_COUNT = 12;
@@ -59,7 +60,7 @@ export async function POST(request: Request) {
         ...(description ? { description } : {}),
       },
     }).returning();
-    return Response.json({ idea: video, job }, { status: 201 });
+    return jobCreated({ idea: video, job }, job.id);
   } catch (err) {
     console.error(err);
     return Response.json({ error: "internal error" }, { status: 500 });
