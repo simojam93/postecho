@@ -18,7 +18,11 @@ export type ChildProcessLike = {
   kill(signal?: NodeJS.Signals | number): boolean;
 };
 
-export type SpawnFn = (command: string, args: string[], options: { stdio: ["pipe", "pipe", "pipe"] }) => ChildProcessLike;
+export type SpawnFn = (
+  command: string,
+  args: string[],
+  options: { stdio: ["pipe", "pipe", "pipe"]; cwd?: string },
+) => ChildProcessLike;
 
 /**
  * `claude -p --output-format json`'s top-level envelope.
@@ -143,6 +147,10 @@ export type RunClaudeJsonOptions<T> = {
   long?: boolean;
   /** When the whole job must be over (epoch ms): every call ends by then, and one with under MIN_CALL_MS left isn't started. */
   deadline?: number;
+  /** The directory Claude Code runs in: a repository it reads (posts from a repo, 2026-10-10). */
+  cwd?: string;
+  /** Read, Glob and Grep allowed, nothing else: Claude looks at the repository, never runs or changes it. */
+  readOnlyTools?: boolean;
 };
 
 /**
@@ -163,7 +171,7 @@ function tooLongMessage(ms: number): string {
 const RETRY_REMINDER =
   "\n\nReturn ONLY valid JSON matching the schema. No prose, no markdown code fences, no explanation.";
 
-function buildArgs(model: string, schema: object, system: string): string[] {
+function buildArgs(model: string, schema: object, system: string, readOnlyTools = false): string[] {
   return [
     "-p",
     "--output-format",
@@ -176,7 +184,7 @@ function buildArgs(model: string, schema: object, system: string): string[] {
     "--system-prompt",
     system,
     "--allowedTools",
-    "",
+    readOnlyTools ? "Read Glob Grep" : "",
   ];
 }
 
@@ -191,9 +199,10 @@ function spawnClaude(
   args: string[],
   prompt: string,
   timeoutMs: number,
+  cwd?: string,
 ): Promise<{ stdout: string; stderr: string; code: number | null }> {
   return new Promise((resolve, reject) => {
-    const child = spawnImpl(claudeBin, args, { stdio: ["pipe", "pipe", "pipe"] });
+    const child = spawnImpl(claudeBin, args, { stdio: ["pipe", "pipe", "pipe"], ...(cwd ? { cwd } : {}) });
     let stdout = "";
     let stderr = "";
     let settled = false;
@@ -251,9 +260,10 @@ export function createClaudeRunner(deps: ClaudeRunnerDeps) {
     const { stdout, stderr, code } = await spawnClaude(
       spawnImpl,
       deps.claudeBin,
-      buildArgs(model, opts.schema, system),
+      buildArgs(model, opts.schema, system, opts.readOnlyTools),
       opts.prompt,
       timeoutMs,
+      opts.cwd,
     );
     const elapsedMs = Date.now() - startedAt;
 

@@ -45,6 +45,9 @@ export type RunClaudeJsonFn = <T>(opts: {
   system: string;
   schema: object;
   parse: (value: unknown) => T;
+  /** Posts from a repo: Claude Code runs in this directory with read tools only (claude.ts). */
+  cwd?: string;
+  readOnlyTools?: boolean;
 }) => Promise<T>;
 
 export type FetchTranscriptFn = (

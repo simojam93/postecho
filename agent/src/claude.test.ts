@@ -127,6 +127,40 @@ describe("createClaudeRunner", () => {
     expect(child!.stdin.written.join("")).toBe("the secret prompt text");
   });
 
+  it("reads one directory with read tools only when asked (posts from a repo, 2026-10-10)", async () => {
+    let capturedArgs: string[] = [];
+    let capturedOptions: Record<string, unknown> = {};
+    const spawnImpl = vi.fn((_bin: string, args: readonly string[], options: Record<string, unknown>) => {
+      capturedArgs = [...args];
+      capturedOptions = options;
+      return fakeChild({ stdoutChunks: [successEnvelope({ ok: true })] }) as never;
+    });
+    const runner = createClaudeRunner({ claudeBin: "claude", model: "sonnet", timeoutMs: 5000, spawnImpl });
+    await runner.runClaudeJson({
+      prompt: "p", system: "s", schema: { type: "object" }, parse: (x) => x,
+      cwd: "/tmp/repo", readOnlyTools: true,
+    });
+    expect(capturedOptions.cwd).toBe("/tmp/repo");
+    const i = capturedArgs.indexOf("--allowedTools");
+    expect(capturedArgs[i + 1]).toBe("Read Glob Grep");
+    expect(capturedArgs.filter((a) => a === "--allowedTools")).toHaveLength(1);
+    expect(capturedArgs).not.toContain("");
+  });
+
+  it("keeps no tools and no working directory otherwise", async () => {
+    let capturedArgs: string[] = [];
+    let capturedOptions: Record<string, unknown> = {};
+    const spawnImpl = vi.fn((_bin: string, args: readonly string[], options: Record<string, unknown>) => {
+      capturedArgs = [...args];
+      capturedOptions = options;
+      return fakeChild({ stdoutChunks: [successEnvelope({ ok: true })] }) as never;
+    });
+    const runner = createClaudeRunner({ claudeBin: "claude", model: "sonnet", timeoutMs: 5000, spawnImpl });
+    await runner.runClaudeJson({ prompt: "p", system: "s", schema: { type: "object" }, parse: (x) => x });
+    expect(capturedOptions).toEqual({ stdio: ["pipe", "pipe", "pipe"] });
+    expect(capturedArgs.slice(-2)).toEqual(["--allowedTools", ""]);
+  });
+
   it("prefers structured_output over parsing the result string when both are present", async () => {
     const spawnImpl = vi.fn(() =>
       fakeChild({
