@@ -302,6 +302,22 @@ describe("POST /api/scheduled-posts/mark-posted", () => {
     const [used] = await state.db!.select().from(drafts).where(eq(drafts.id, draft.id));
     expect(used.status).toBe("used");
   });
+
+  it("a ready post stays ready until every platform it has is recorded (schedule in a row, 2026-10-10)", async () => {
+    const draft = await insertDraft({ xText: "on X", linkedinText: "on LinkedIn", status: "kept", readyAt: new Date() });
+    const at = new Date(Date.now() + 26 * 3_600_000).toISOString();
+    expect((await markReq({ draftId: draft.id, platform: "x", publishAt: at })).status).toBe(201);
+    const [afterX] = await state.db!.select().from(drafts).where(eq(drafts.id, draft.id));
+    expect(afterX.readyAt).not.toBeNull();
+    expect((await markReq({ draftId: draft.id, platform: "linkedin", publishAt: at })).status).toBe(201);
+    const [afterBoth] = await state.db!.select().from(drafts).where(eq(drafts.id, draft.id));
+    expect(afterBoth.readyAt).toBeNull();
+
+    const xOnly = await insertDraft({ xText: "only X", status: "kept", readyAt: new Date() });
+    expect((await markReq({ draftId: xOnly.id, platform: "x", publishAt: at })).status).toBe(201);
+    const [done] = await state.db!.select().from(drafts).where(eq(drafts.id, xOnly.id));
+    expect(done.readyAt).toBeNull();
+  });
 });
 
 describe("POST /api/scheduled-posts/:id/run", () => {

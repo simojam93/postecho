@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { createTestDb } from "@/test/db";
-import { drafts, ideas, jobs } from "@/db/schema";
+import { drafts, ideas, jobs, scheduledPosts } from "@/db/schema";
 
 const state: { db: Awaited<ReturnType<typeof createTestDb>> | null } = { db: null };
 vi.mock("@/db", () => ({ get db() { return state.db; } }));
@@ -15,6 +15,7 @@ const { PATCH } = await import("@/app/api/drafts/[id]/route");
 const { POST: postFromIdea } = await import("@/app/api/drafts/from-idea/route");
 const { POST: postRevise } = await import("@/app/api/drafts/[id]/revise/route");
 const { POST: postImagePrompt } = await import("@/app/api/drafts/[id]/image-prompt/route");
+const { GET: getReady } = await import("@/app/api/drafts/ready/route");
 
 beforeEach(async () => {
   state.db = await createTestDb();
@@ -492,5 +493,65 @@ describe("ready to schedule (schedule in a row, 2026-10-10)", () => {
   it("a draft is not ready until the owner says so: readyAt starts null", async () => {
     const [draft] = await state.db!.insert(drafts).values({ xText: "A post" }).returning();
     expect(draft.readyAt).toBeNull();
+  });
+
+  const patchReq = (id: string, body: unknown) => PATCH(jsonReq("http://test/api/drafts/x", "PATCH", body), { params: Promise.resolve({ id }) });
+
+  it("Ready sets readyAt, Back to Compose clears it", async () => {
+    const [draft] = await state.db!.insert(drafts).values({ xText: "A post", status: "kept" }).returning();
+    const ready = await patchReq(draft.id, { ready: true });
+    expect(ready.status).toBe(200);
+    const readyAt = (await ready.json()).draft.readyAt;
+    expect(typeof readyAt).toBe("string");
+    expect(Math.abs(new Date(readyAt).getTime() - Date.now())).toBeLessThan(60_000);
+    const back = await patchReq(draft.id, { ready: false });
+    expect((await back.json()).draft.readyAt).toBeNull();
+  });
+
+  it("an article can't be made ready: X has no scheduler an app can open for it (409)", async () => {
+    const [article] = await state.db!.insert(drafts).values({ articleTitle: "T", articleText: "Body", status: "kept" }).returning();
+    expect((await patchReq(article.id, { ready: true })).status).toBe(409);
+    const [row] = await state.db!.select().from(drafts).where(eq(drafts.id, article.id));
+    expect(row.readyAt).toBeNull();
+    expect((await patchReq(article.id, { ready: false })).status).toBe(200);
+  });
+
+  it("a ready post leaves Compose's strip", async () => {
+    const [a] = await state.db!.insert(ideas).values({ kind: "note", title: "A" }).returning();
+    const [b] = await state.db!.insert(ideas).values({ kind: "note", title: "B" }).returning();
+    await state.db!.insert(drafts).values({ ideaId: a.id, xText: "a", status: "kept", readyAt: new Date() });
+    await state.db!.insert(drafts).values({ ideaId: a.id, xText: "another take", status: "candidate" });
+    await state.db!.insert(drafts).values({ ideaId: b.id, xText: "b", status: "kept" });
+    const { posts } = await (await GET(getReq("?view=in-progress"))).json();
+    expect(posts.map((p: { ideaId: string }) => p.ideaId)).toEqual([b.id]);
+  });
+
+  it("GET /api/drafts/ready: the ready posts, oldest ready first, with the platforms still to schedule", async () => {
+    const [idea] = await state.db!.insert(ideas).values({ kind: "note", title: "An idea" }).returning();
+    const [second] = await state.db!.insert(drafts).values({
+      ideaId: idea.id, xText: "Second", linkedinText: "Second on LinkedIn", status: "used", readyAt: new Date("2026-10-10T10:00:00Z"),
+    }).returning();
+    const [first] = await state.db!.insert(drafts).values({ xText: "First", status: "kept", readyAt: new Date("2026-10-10T09:00:00Z") }).returning();
+    // X already scheduled: only LinkedIn is left of the second.
+    await state.db!.insert(scheduledPosts).values({
+      draftId: second.id, platform: "x", text: "Second", status: "posted_manually", postedBy: "manual",
+      publishAt: new Date("2030-01-01T10:00:00Z"), publishedAt: new Date("2030-01-01T10:00:00Z"),
+    });
+    await state.db!.insert(drafts).values({ articleTitle: "T", articleText: "Body", status: "kept", readyAt: new Date() });
+    await state.db!.insert(drafts).values({ xText: "Binned", status: "discarded", readyAt: new Date() });
+    await state.db!.insert(drafts).values({ xText: "Not ready", status: "kept" });
+
+    const res = await getReady();
+    expect(res.status).toBe(200);
+    const { posts } = await res.json();
+    expect(posts).toEqual([
+      { draftId: first.id, ideaId: null, xText: "First", linkedinText: null, platforms: ["x"], readyAt: "2026-10-10T09:00:00.000Z" },
+      { draftId: second.id, ideaId: idea.id, xText: "Second", linkedinText: "Second on LinkedIn", platforms: ["linkedin"], readyAt: "2026-10-10T10:00:00.000Z" },
+    ]);
+  });
+
+  it("GET /api/drafts/ready 401s when the session is denied", async () => {
+    await denySession();
+    expect((await getReady()).status).toBe(401);
   });
 });

@@ -12,13 +12,15 @@ const Body = z.object({
   articleText: z.string().max(12000).optional(),
   status: z.enum(["candidate", "kept", "used", "discarded"]).optional(),
   favorite: z.boolean().optional(),
+  // Compose's Ready (true) and Back to Compose (false), schedule in a row (2026-10-10): sets or clears readyAt.
+  ready: z.boolean().optional(),
 }).strict().refine((b) => Object.keys(b).length > 0, { message: "at least one field is required" });
 
 /**
  * PATCH /api/drafts/:id
  *
  * Edits a draft in place — text edits (autosave on blur; an article's title
- * and body too), status changes
+ * and body too), Ready / Back to Compose (`ready`; 409 for an article), status changes
  * (Keep/Discard/mark used), and the ♥ favorite toggle, all in one endpoint
  * since the Create tab editor (M2 plan Task A8) fires all of these from the
  * same screen. At least one field is required: an empty `{}` body would
@@ -37,8 +39,16 @@ export async function PATCH(
 
   if (!z.uuid().safeParse(id).success) return Response.json({ error: "not found" }, { status: 404 });
 
+  const { ready, ...fields } = parsed.data;
   try {
-    const [draft] = await db.update(drafts).set(parsed.data).where(eq(drafts.id, id)).returning();
+    if (ready) {
+      // An article isn't scheduled in a row: X has no scheduler an app can open for it.
+      const [current] = await db.select({ articleText: drafts.articleText }).from(drafts).where(eq(drafts.id, id)).limit(1);
+      if (!current) return Response.json({ error: "not found" }, { status: 404 });
+      if (current.articleText !== null) return Response.json({ error: "an article can't be scheduled from Schedule" }, { status: 409 });
+    }
+    const changes = ready === undefined ? fields : { ...fields, readyAt: ready ? new Date() : null };
+    const [draft] = await db.update(drafts).set(changes).where(eq(drafts.id, id)).returning();
     if (!draft) return Response.json({ error: "not found" }, { status: 404 });
     return Response.json({ draft });
   } catch (e) {

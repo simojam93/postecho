@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, ne } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, ne } from "drizzle-orm";
 import { drafts, ideas, jobs, scheduledPosts } from "@/db/schema";
 import { MAX_TAKES } from "@/lib/takes";
 import type { db as Db } from "@/db";
@@ -144,14 +144,19 @@ export async function listDrafts(db: typeof Db, filters: DraftListFilters): Prom
 export async function listPostsInProgress(db: typeof Db): Promise<PostInProgress[]> {
   const [all, used] = await Promise.all([
     db
-      .select({ id: drafts.id, ideaId: drafts.ideaId, status: drafts.status, parentId: drafts.parentId })
+      .select({ id: drafts.id, ideaId: drafts.ideaId, status: drafts.status, parentId: drafts.parentId, readyAt: drafts.readyAt })
       .from(drafts)
       .where(inArray(drafts.status, IN_PROGRESS_STATUSES))
       .orderBy(desc(drafts.updatedAt), desc(drafts.createdAt)),
     db.select({ ideaId: drafts.ideaId }).from(drafts).where(eq(drafts.status, "used")),
   ]);
-  const archived = new Set(used.map((row) => row.ideaId).filter((id): id is string => id !== null));
-  const rows = all.filter((row) => row.ideaId === null || !archived.has(row.ideaId));
+  // A post made Ready waits in Schedule's list (schedule in a row, 2026-10-10), not here: its idea leaves
+  // the strip with every take, as a used one does.
+  const elsewhere = new Set([
+    ...used.map((row) => row.ideaId),
+    ...all.filter((row) => row.readyAt !== null).map((row) => row.ideaId),
+  ].filter((id): id is string => id !== null));
+  const rows = all.filter((row) => row.readyAt === null && (row.ideaId === null || !elsewhere.has(row.ideaId)));
   // A draft starts a take unless it's a version of another in-progress draft
   // (lib/takes.ts's lines, as near as these rows tell).
   const inProgressIds = new Set(rows.map((row) => row.id));
@@ -182,6 +187,45 @@ export async function listPostsInProgress(db: typeof Db): Promise<PostInProgress
     post.latestJobStatus = latestJobStatusByIdea.get(post.ideaId) ?? null;
   }
   return [...groups.values()];
+}
+
+/** A post in Schedule's Ready to schedule list (schedule in a row, 2026-10-10). */
+export type ReadyPost = {
+  draftId: string;
+  ideaId: string | null;
+  xText: string | null;
+  linkedinText: string | null;
+  /** The platforms it has text for and isn't scheduled or posted on yet, X first. */
+  platforms: Array<"x" | "linkedin">;
+  readyAt: Date;
+};
+
+/**
+ * The posts made Ready in Compose and not yet scheduled everywhere, oldest ready first (GET
+ * /api/drafts/ready). Each carries only the platforms left: a post scheduled on X and skipped on
+ * LinkedIn stays with LinkedIn. Articles never: X has no scheduler an app can open for them.
+ */
+export async function listReadyPosts(db: typeof Db): Promise<ReadyPost[]> {
+  const ready = await db.select().from(drafts)
+    .where(and(isNotNull(drafts.readyAt), ne(drafts.status, "discarded"), isNull(drafts.articleText)))
+    .orderBy(asc(drafts.readyAt), asc(drafts.createdAt));
+  if (ready.length === 0) return [];
+  const recorded = await db
+    .select({ draftId: scheduledPosts.draftId, platform: scheduledPosts.platform })
+    .from(scheduledPosts)
+    .where(and(inArray(scheduledPosts.draftId, ready.map((d) => d.id)), ne(scheduledPosts.status, "canceled")));
+  return ready
+    .map((d) => ({
+      draftId: d.id,
+      ideaId: d.ideaId,
+      xText: d.xText,
+      linkedinText: d.linkedinText,
+      platforms: (["x", "linkedin"] as const).filter((platform) =>
+        Boolean((platform === "x" ? d.xText : d.linkedinText)?.trim())
+        && !recorded.some((row) => row.draftId === d.id && row.platform === platform)),
+      readyAt: d.readyAt as Date,
+    }))
+    .filter((post) => post.platforms.length > 0);
 }
 
 /** A post scheduled or posted: Write's Archive (owner, 2026-09-27: "una volta che scheduli un post in write, quelli vanno in un archivio"). */

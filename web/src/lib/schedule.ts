@@ -320,6 +320,23 @@ async function markDraftUsedOrUndo(db: ScheduleDb, draftId: string, post: Schedu
 }
 
 /**
+ * A ready post (Schedule's Ready to schedule list, 2026-10-10) leaves the list once every platform it
+ * has text for holds a non-canceled schedule: readyAt is cleared and it shows in the week like any
+ * scheduled post. Until then it stays, with the platforms left (lib/drafts.ts's listReadyPosts).
+ */
+async function clearReadyOnceScheduled(db: ScheduleDb, draftId: string): Promise<void> {
+  const draft = await loadDraft(db, draftId);
+  if (!draft || draft.readyAt === null) return;
+  const recorded = await db
+    .select({ platform: scheduledPosts.platform })
+    .from(scheduledPosts)
+    .where(and(eq(scheduledPosts.draftId, draftId), ne(scheduledPosts.status, "canceled")));
+  const left = (["x", "linkedin"] as const).filter((platform) =>
+    Boolean((platform === "x" ? draft.xText : draft.linkedinText)?.trim()) && !recorded.some((row) => row.platform === platform));
+  if (left.length === 0) await db.update(drafts).set({ readyAt: null }).where(eq(drafts.id, draftId));
+}
+
+/**
  * When the timer for a slot fires: `leadMinutes` before `publishAt` — the
  * email needs to land with time to spare — but never before `now` +
  * MIN_TIMER_DELAY_MS: a slot scheduled inside its own lead time (or, with
@@ -717,6 +734,7 @@ export async function markPostedManually(
 
   await setAsidePending(db, qstash, { draftId, platform, exceptId: post.id });
   await markDraftUsedOrUndo(db, draftId, post);
+  await clearReadyOnceScheduled(db, draftId);
   return { ok: true, post };
 }
 
