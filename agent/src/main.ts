@@ -1,48 +1,18 @@
 import { createClaudeRunner } from "./claude.js";
 import { loadConfig } from "./config.js";
-import { HandlerDeps, runHandler, SERVED_KINDS } from "./handlers.js";
+import { HandlerDeps, SERVED_KINDS } from "./handlers.js";
 import { pickFolder } from "./pick-folder.js";
-import { createPostEchoClient, type Job } from "./postecho.js";
+import { createPostEchoClient } from "./postecho.js";
 import { resolveRepoOnThisComputer } from "./repo-source.js";
 import { fetchTranscript } from "./transcript.js";
-
-const HEARTBEAT_INTERVAL_MS = 60_000;
-const CLAIM_ERROR_BACKOFF_MS = 2_000;
-/**
- * Every job is over within this, however many Claude calls it makes: the web
- * puts a job still claimed after 10 minutes back in the queue
- * (web/src/app/api/agent/jobs/route.ts's STALE_CLAIM_MS), and a result posted
- * after that would be lost while the job ran twice.
- */
-const JOB_BUDGET_MS = 9 * 60_000;
-/** The jobs that read a whole video's transcript, or a whole repository: their Claude calls get twice the time. */
-const LONG_READS = new Set(["video_ideas", "generate_from_video", "repo_posts"]);
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function errorMessage(e: unknown): string {
-  return e instanceof Error ? e.message : String(e);
-}
+import { createWorker, errorMessage, runPollLoop } from "./worker.js";
 
 /**
- * The poll loop: heartbeat every 60s -> claim one job (a quick ask by
- * default; a long-poll of up to POLL_WAIT_SECONDS if set) -> run its handler
- * -> postResult -> repeat, pausing POLL_IDLE_SECONDS after a claim that found
- * nothing. The short ask is for hosting: on Vercel a long-poll keeps a
- * function alive around the clock, and Fluid compute bills that time. Single
- * concurrency by construction (a plain sequential loop, never Promise.all
- * across jobs) — the point is one job on the owner's Mac at a time, not
- * throughput.
+ * Wires the agent together: the config, the PostEcho client, Claude Code and
+ * the worker (worker.ts), which claims, runs and reports jobs.
  *
- * SIGINT/SIGTERM set a flag checked between iterations, so a job already
- * running — or one claimed by a poll that was in flight when the signal
- * arrived — is always finished and reported before the process exits. Since
- * claimJob can itself be blocked in a long-poll for up to
- * POLL_WAIT_SECONDS (default 25s) when a signal arrives, shutdown can take
- * up to that long in the worst case — deliberately simple over instant:
- * no in-flight-request cancellation, no corrupted partial state either.
+ * SIGINT/SIGTERM set a flag checked between jobs, so a job already running is
+ * always finished and reported before the process exits.
  */
 export async function runAgent(): Promise<void> {
   const config = loadConfig();
@@ -61,6 +31,7 @@ export async function runAgent(): Promise<void> {
     resolveRepo: resolveRepoOnThisComputer,
     pickFolder: () => pickFolder(),
   };
+  const worker = createWorker({ client, runner, deps, kinds: SERVED_KINDS, pollWaitSeconds: config.pollWaitSeconds });
 
   let stopping = false;
   const requestStop = (signal: string) => {
@@ -72,65 +43,7 @@ export async function runAgent(): Promise<void> {
   process.once("SIGTERM", () => requestStop("SIGTERM"));
 
   console.log(`[agent] starting — ${config.postechoUrl}, kinds: ${SERVED_KINDS.join(", ")}`);
-
-  let lastHeartbeatAt = 0;
-
-  while (!stopping) {
-    if (Date.now() - lastHeartbeatAt >= HEARTBEAT_INTERVAL_MS) {
-      try {
-        const answer = await client.heartbeat(SERVED_KINDS);
-        lastHeartbeatAt = Date.now();
-        if (answer.claudeModel && answer.claudeModel !== runner.model) {
-          runner.setModel(answer.claudeModel);
-          console.log(`[agent] writing with Claude ${answer.claudeModel} from now on (Settings › AI tools)`);
-        }
-      } catch (e) {
-        console.error(`[agent] heartbeat failed: ${errorMessage(e)}`);
-      }
-    }
-
-    let job: Job | null;
-    try {
-      job = await client.claimJob(SERVED_KINDS, config.pollWaitSeconds);
-    } catch (e) {
-      console.error(`[agent] claimJob failed: ${errorMessage(e)}`);
-      await sleep(CLAIM_ERROR_BACKOFF_MS);
-      continue;
-    }
-
-    // A job that came back from a claim that was already in flight when the
-    // stop signal arrived is still OURS (the server marked it claimed): run
-    // and report it rather than abandoning it in `claimed` until the
-    // 10-minute stale sweep. The while condition stops the loop right after.
-    if (!job) {
-      await sleep(config.pollIdleSeconds * 1000);
-      continue;
-    }
-
-    console.log(`[agent] claimed job ${job.id} (${job.kind})`);
-    const startedAt = Date.now();
-    // Progress is per job: it posts to this job's id with this claim's ownership echo.
-    const claimed = job;
-    const deadline = startedAt + JOB_BUDGET_MS;
-    const long = LONG_READS.has(job.kind);
-    const outcome = await runHandler(job, {
-      ...deps,
-      runClaudeJson: (opts) => runner.runClaudeJson({ ...opts, long, deadline }),
-      reportProgress: (progress) => client.reportProgress(claimed.id, claimed.claimedAt, progress),
-    });
-    const elapsedMs = Date.now() - startedAt;
-    console.log(
-      `[agent] job ${job.id} ${outcome.ok ? "done" : "failed"} in ${elapsedMs}ms` +
-        (outcome.ok ? "" : `: ${outcome.error}`),
-    );
-
-    try {
-      await client.postResult(job.id, job.claimedAt, outcome);
-    } catch (e) {
-      console.error(`[agent] postResult failed for job ${job.id}: ${errorMessage(e)}`);
-    }
-  }
-
+  await runPollLoop({ worker, isStopping: () => stopping, pollIdleSeconds: config.pollIdleSeconds });
   console.log("[agent] stopped.");
 }
 
