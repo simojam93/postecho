@@ -38,6 +38,8 @@ export type Idea = {
   };
 };
 
+const REPO_FORMAT_LABEL: Record<string, string> = { x: "X post", linkedin: "LinkedIn post", article: "X article" };
+
 /** A video's ready post before its more: set so the card is as tall as a Trends one (Show more level with the account bar). */
 const VIDEO_POST_LINES = 5;
 
@@ -196,7 +198,12 @@ export function IdeaCard({ idea, onStatus, onUse, inStyle = false, onStyle }: {
           (owner, 2026-09-27: "toglilo dappertutto, perché non mi voglio far condizionare").
           A video's topic has no source pill or author: all twelve come from the video its chip names (2026-09-27). */}
       <div className="flex min-h-5 items-center justify-between gap-2 text-sm text-text-dim">
-        {idea.kind === "video_idea" || idea.kind === "repo_post" ? <span aria-hidden /> : (
+        {idea.kind === "repo_post" ? (
+          // Posts from a repo mix formats over several asks: the pill says which this one is (2026-10-10).
+          <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-[10px] uppercase tracking-wide text-text-dim">
+            {REPO_FORMAT_LABEL[idea.meta.format ?? ""] ?? "Post"}
+          </span>
+        ) : idea.kind === "video_idea" ? <span aria-hidden /> : (
           <div className="flex min-w-0 items-center gap-2">
             <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-[10px] uppercase tracking-wide text-text-dim">
               {sourcePillLabel(idea)}
