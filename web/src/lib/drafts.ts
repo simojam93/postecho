@@ -151,7 +151,7 @@ export async function listPostsInProgress(db: typeof Db): Promise<PostInProgress
       .orderBy(desc(drafts.updatedAt), desc(drafts.createdAt)),
     db.select({ ideaId: drafts.ideaId }).from(drafts).where(eq(drafts.status, "used")),
   ]);
-  // A post made Ready waits in Schedule's list (schedule in a row, 2026-10-10), not here: its idea leaves
+  // A post added to the queue waits in Schedule's Queue (schedule in a row, 2026-10-10), not here: its idea leaves
   // the strip with every take, as a used one does.
   const elsewhere = new Set([
     ...used.map((row) => row.ideaId),
@@ -190,7 +190,7 @@ export async function listPostsInProgress(db: typeof Db): Promise<PostInProgress
   return [...groups.values()];
 }
 
-/** A post in Schedule's Ready to schedule list (schedule in a row, 2026-10-10). */
+/** A post in Schedule's Queue (schedule in a row, 2026-10-10). */
 export type ReadyPost = {
   draftId: string;
   ideaId: string | null;
@@ -204,7 +204,7 @@ export type ReadyPost = {
 };
 
 /**
- * The posts made Ready in Compose and not yet scheduled everywhere, oldest ready first (GET
+ * The posts added to the queue in Compose and not yet scheduled everywhere, oldest ready first (GET
  * /api/drafts/ready). Each carries only the platforms left: a post scheduled on X and skipped on
  * LinkedIn stays with LinkedIn, and only its kept media. Articles never: X has no scheduler an app
  * can open for them.

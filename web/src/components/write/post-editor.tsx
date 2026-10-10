@@ -84,7 +84,7 @@ export function PostEditor({ draft, chain, voice, tab, onTab, onMutated, onRefin
   onRefined: (supersededId: string) => Promise<void>;
   /** "back to vN-1": re-pick that version. */
   onPickVersion: (id: string) => void;
-  /** Ready was saved: the post is in Schedule's list now. Without it, the page just refetches. */
+  /** Add to queue was saved: the post is in Schedule's queue now. Without it, the page just refetches. */
   onReady?: () => void;
 }) {
   const [xDraft, setXDraft] = useState(draft.xText ?? "");
@@ -193,7 +193,7 @@ export function PostEditor({ draft, chain, voice, tab, onTab, onMutated, onRefin
   }
 
   /**
-   * Ready / Back to Compose (PATCH { ready }, unsaved texts with it). Ready hands over to the page, which
+   * Add to queue / Back to Compose (PATCH { ready }, unsaved texts with it). Add to queue hands over to the page, which
    * moves on to the next post in progress; Back to Compose reloads, and the post is in the strip again.
    */
   async function setReady(ready: boolean) {
@@ -471,16 +471,16 @@ export function PostEditor({ draft, chain, voice, tab, onTab, onMutated, onRefin
             ✓ {scheduledOn.map((entry) => `${PLATFORM_LABEL[entry.platform]} · ${formatRomeSlot(entry.publishAt, entry.at)}`).join(", ")}
           </Link>
         )}
-        {/* Ready (schedule in a row, 2026-10-10): the post leaves Compose for Schedule's list, to be scheduled with
-            the others in one sitting. A ready post, opened from that list, goes back with Back to Compose. */}
+        {/* Add to queue (schedule in a row, 2026-10-10): the post leaves Compose for Schedule's queue, to be scheduled
+            with the others in one sitting. A queued post, opened from the queue, goes back with Back to Compose. */}
         <button
           type="button"
           onClick={() => void setReady(!draft.readyAt)}
           disabled={statusBusy || (!draft.readyAt && (!canAct || xOverLimit))}
-          data-tip={draft.readyAt ? undefined : !canAct ? "Write the post first" : xOverLimit ? `The X text is over ${X_LIMIT} characters` : "Line it up in Schedule with your other ready posts"}
+          data-tip={draft.readyAt ? undefined : !canAct ? "Write the post first" : xOverLimit ? `The X text is over ${X_LIMIT} characters` : "Line it up in Schedule with your other posts"}
           className={`${pillCls} ${scheduledOn.length > 0 ? "" : "ml-auto"}`}
         >
-          {draft.readyAt ? "Back to Compose" : "Ready"}
+          {draft.readyAt ? "Back to Compose" : "Add to queue"}
         </button>
         <div ref={moreRef} className="relative flex">
           <button

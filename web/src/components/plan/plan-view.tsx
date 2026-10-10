@@ -118,7 +118,7 @@ export function PlanView({ initialDay }: { initialDay?: DayKey } = {}) {
   const [toRate, setToRate] = useState<PlanPost[]>([]);
   // The post whose vote is being saved.
   const [rating, setRating] = useState<string | null>(null);
-  // Ready to schedule (schedule in a row, 2026-10-10): the list, and the times the owner changed (by draft id).
+  // Queue (schedule in a row, 2026-10-10): the list, and the times the owner changed (by draft id).
   const [ready, setReady] = useState<Ready>({ posts: [], taken: [], now: "" });
   const [changedTimes, setChangedTimes] = useState<Record<string, string>>({});
   // Schedule all's sequence, while open: the ready posts in the list's order with their times, fixed when it opened.

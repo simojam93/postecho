@@ -30,11 +30,11 @@ export function postStart(post: Pick<ReadyPost, "xText" | "linkedinText">): stri
 }
 
 /**
- * Ready to schedule (schedule in a row, 2026-10-10): the posts made Ready in Compose, at the top of
+ * Queue (schedule in a row, 2026-10-10; Ready to schedule until 2026-10-11): the posts added in Compose, at the top of
  * Schedule, each with its start (opening it in Compose, where Back to Compose sends it back), its
  * platforms and its proposed time (lib/schedule-queue.ts), which the owner can change. Rows follow
  * their times, so changing one reorders them. Schedule all opens the guided sequence over them in
- * that order (schedule-all-dialog.tsx). Hidden when nothing is ready.
+ * that order (schedule-all-dialog.tsx). Hidden when the queue is empty.
  */
 export function ReadyList({ posts, times, onChangeTime, onScheduleAll }: {
   posts: ReadyPost[];
@@ -46,9 +46,9 @@ export function ReadyList({ posts, times, onChangeTime, onScheduleAll }: {
   if (posts.length === 0) return null;
   const rows = queueOrder(posts.map((post) => ({ ...post, id: post.draftId })), times);
   return (
-    <section aria-label="Ready to schedule" className="space-y-3 rounded-xl border border-border bg-surface p-4">
+    <section aria-label="Queue" className="space-y-3 rounded-xl border border-border bg-surface p-4">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="font-semibold">Ready to schedule<span className="text-text-dim"> ({posts.length})</span></h2>
+        <h2 className="font-semibold">Queue<span className="text-text-dim"> ({posts.length})</span></h2>
         <button type="button" onClick={onScheduleAll} className={primaryPillCls}>Schedule all</button>
       </div>
       <ul className="divide-y divide-border">

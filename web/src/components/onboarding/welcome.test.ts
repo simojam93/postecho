@@ -43,6 +43,8 @@ describe("the welcome, redone (2026-09-27: \"l'onboarding a te sembra chiaro? mm
     // Calendar is Schedule since 2026-10-10 (schedule in a row): ready posts line up there.
     const calendar = renderToStaticMarkup(createElement(ScheduleStep, { titleId: "t" }));
     expect(calendar).toContain("Schedule: your posts by date");
+    expect(calendar).toContain("Posts you add to the queue in Compose line up here");
+    expect(calendar).not.toContain("Ready");
     expect(calendar).not.toContain("Calendar");
     expect(calendar).toContain("How did it do?");
   });

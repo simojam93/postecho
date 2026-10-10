@@ -14,15 +14,15 @@ const render = (over: Partial<Parameters<typeof ReadyList>[0]> = {}) => renderTo
   posts, times, onChangeTime: () => {}, onScheduleAll: () => {}, ...over,
 }));
 
-describe("Ready to schedule, at the top of Schedule (2026-10-10)", () => {
-  it("is hidden when nothing is ready", () => {
+describe("Queue, at the top of Schedule (2026-10-10)", () => {
+  it("is hidden when the queue is empty", () => {
     expect(render({ posts: [] })).toBe("");
   });
 
   it("its title and count, and Schedule all", () => {
     const html = render();
-    expect(html).toContain('aria-label="Ready to schedule"');
-    expect(html).toContain(">Ready to schedule<");
+    expect(html).toContain('aria-label="Queue"');
+    expect(html).toContain(">Queue<");
     expect(html).toContain("(3)");
     expect(html).toMatch(/<button[^>]*>Schedule all<\/button>/);
   });

@@ -108,7 +108,7 @@ export function ScheduleStep({ titleId }: { titleId: string }) {
     <div className="space-y-5">
       <div className="space-y-1">
         <h2 id={titleId} className="text-lg font-semibold">Schedule: your posts by date</h2>
-        <p className="text-sm text-text-dim">Posts you mark Ready in Compose line up here, to schedule in one sitting. Once a post is out, tell PostEcho how it did: it learns what works for you.</p>
+        <p className="text-sm text-text-dim">Posts you add to the queue in Compose line up here, to schedule in one sitting. Once a post is out, tell PostEcho how it did: it learns what works for you.</p>
       </div>
       <div aria-hidden className="space-y-3">
         <div className="grid grid-cols-7 gap-1.5">

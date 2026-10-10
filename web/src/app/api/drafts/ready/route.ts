@@ -5,7 +5,7 @@ import { requireSession } from "@/lib/session";
 /**
  * GET /api/drafts/ready
  *
- * Schedule's Ready to schedule list (schedule in a row, 2026-10-10): the posts made Ready in Compose,
+ * Schedule's Queue (schedule in a row, 2026-10-10): the posts added to the queue in Compose,
  * oldest ready first, each with the platforms still to schedule — lib/drafts.ts's listReadyPosts.
  * `{ posts }`. Its own route rather than a second `view=` on GET /api/drafts (see that route's View).
  */

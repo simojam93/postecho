@@ -320,7 +320,7 @@ async function markDraftUsedOrUndo(db: ScheduleDb, draftId: string, post: Schedu
 }
 
 /**
- * A ready post (Schedule's Ready to schedule list, 2026-10-10) leaves the list once every platform it
+ * A ready post (Schedule's Queue, 2026-10-10) leaves the list once every platform it
  * has text for holds a non-canceled schedule: readyAt is cleared and it shows in the week like any
  * scheduled post. Until then it stays, with the platforms left (lib/drafts.ts's listReadyPosts).
  */

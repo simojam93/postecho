@@ -1,5 +1,5 @@
 /**
- * Proposed times for Schedule's Ready to schedule list (schedule in a row, 2026-10-10) — pure, no
+ * Proposed times for Schedule's Queue (schedule in a row, 2026-10-10) — pure, no
  * React, no fetch, unit-tested in schedule-queue.test.ts, safe in a client bundle. The owner's posting
  * times (Settings `defaultSlots`) are Europe/Rome wall-clock times, read with plan-calendar.ts's Rome
  * wall clock (the client-safe twin of lib/schedule.ts's, proven across both DST changes) and the same

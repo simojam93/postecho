@@ -7,6 +7,7 @@ import { ArchiveButton } from "@/components/archive";
 import { isVideoPost } from "@/lib/video-post";
 import { InProgressStrip, type StripChip } from "@/components/write/in-progress-strip";
 import { NewPostComposer } from "@/components/write/new-post-composer";
+import { QueuedNotice } from "@/components/write/queued-notice";
 import { SourceCard } from "@/components/write/source-card";
 import { TakesRow } from "@/components/write/takes-row";
 import { PostEditor, YOUR_POST_ID } from "@/components/write/post-editor";
@@ -80,7 +81,7 @@ function WriteContent() {
   const [removingIdeaId, setRemovingIdeaId] = useState<string | null>(null);
   // Write's + New (2026-09-24): the composer for a post from the owner's own text.
   const [composerOpen, setComposerOpen] = useState(false);
-  // Ready (schedule in a row, 2026-10-10): a post just went to Schedule's list.
+  // Add to queue (schedule in a row, 2026-10-10): a post just went to Schedule's queue.
   const [sentToSchedule, setSentToSchedule] = useState(false);
 
   // Drafts with no idea (none exist today) come back as an ideaId-null entry
@@ -358,7 +359,7 @@ function WriteContent() {
   }
 
   /**
-   * Ready was saved: the post is in Schedule's list, so Compose moves on to the next post in progress.
+   * Add to queue was saved: the post is in Schedule's queue, so Compose moves on to the next post in progress.
    * Its chip goes at once, so the URL isn't pinned back to it before the strip reloads.
    */
   function sentReady(ideaId: string) {
@@ -389,11 +390,7 @@ function WriteContent() {
     if (posts === null) return <p className="text-sm text-text-dim">Loading…</p>;
     return (
       <div className="space-y-4">
-        {sentToSchedule && (
-          <p role="status" className="text-sm text-ok">
-            ✓ Ready · <Link href="/calendar" className="underline hover:text-text">See it in Schedule</Link>
-          </p>
-        )}
+        {sentToSchedule && <QueuedNotice />}
         {postsError && <p className="text-sm text-danger">{postsError}</p>}
         <div className="flex items-start gap-3">
           <p className="text-sm text-text-dim">
@@ -423,11 +420,7 @@ function WriteContent() {
         <ArchiveButton refreshKey={postsKey} className="ml-auto" />
       </div>
       {composerOpen && <NewPostComposer onCreated={openNewPost} onCancel={() => setComposerOpen(false)} autoFocus />}
-      {sentToSchedule && (
-        <p role="status" className="text-sm text-ok">
-          ✓ Ready · <Link href="/calendar" className="underline hover:text-text">See it in Schedule</Link>
-        </p>
-      )}
+      {sentToSchedule && <QueuedNotice />}
       {postsError && <p className="text-sm text-danger">{postsError}</p>}
 
       {idea === undefined && !ideasError && <p className="text-sm text-text-dim">Loading…</p>}
