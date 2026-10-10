@@ -98,6 +98,20 @@ describe("schema", () => {
     expect(rows[0].jobId).toBeNull();
   });
 
+  // Migration 0015 (posts from a repo, 2026-10-10): a repo source and the posts written from it, the
+  // two job kinds behind them, and an X article's title and body on a draft.
+  it("accepts repo ideas, the repo jobs and article drafts added in migration 0015", async () => {
+    const db = await createTestDb();
+    const [repo] = await db.insert(ideas).values({ kind: "repo", url: "https://github.com/a/b", title: "a/b" }).returning();
+    await db.insert(ideas).values({ kind: "repo_post", content: "a post", meta: { repoId: repo.id } });
+    await db.insert(jobs).values([{ kind: "repo_posts" }, { kind: "pick_folder" }]);
+    const [draft] = await db.insert(drafts).values({ ideaId: repo.id, articleTitle: "A title", articleText: "The body" }).returning();
+    expect(draft).toMatchObject({ articleTitle: "A title", articleText: "The body", xText: null });
+    const [plain] = await db.insert(drafts).values({ xText: "hi" }).returning();
+    expect(plain).toMatchObject({ articleTitle: null, articleText: null });
+    expect((await db.select().from(jobs)).map((j) => j.kind).sort()).toEqual(["pick_folder", "repo_posts"]);
+  });
+
   // Migration 0009 (M3 publishing, plan P1) grows scheduled_posts additively:
   // published_url, emailed_at, created_at/updated_at (defaulted, so existing
   // rows backfill), an index on the slot and the one-queued-per-(draft,
