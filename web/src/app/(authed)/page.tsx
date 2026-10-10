@@ -7,7 +7,7 @@ import { IdeaCard, type Idea } from "@/components/idea-card";
 import { NewVideoForm } from "@/components/new-video-form";
 import { VideoChips } from "@/components/videos/video-chips";
 import { VideoIdeas } from "@/components/videos/video-ideas";
-import { RepoForm } from "@/components/repos/repo-form";
+import { RepoForm, repoSource } from "@/components/repos/repo-form";
 import { RepoChips } from "@/components/repos/repo-chips";
 import { RepoPosts } from "@/components/repos/repo-posts";
 import { FirstSearchBanner } from "@/components/onboarding/first-search-banner";
@@ -314,9 +314,7 @@ export default function FindIdeasPage() {
     try {
       const last = await fetch(`/api/jobs?ideaId=${repo.id}&kind=repo_posts&limit=1`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
       const payload = last?.jobs?.[0]?.payload as { source?: unknown; brief?: unknown; format?: unknown; count?: unknown } | undefined;
-      const source = payload?.source ?? (repo.meta.sourceType === "folder" && repo.url?.startsWith("file://")
-        ? { type: "folder", path: repo.url.slice("file://".length) }
-        : { type: "github", url: repo.url });
+      const source = payload?.source ?? repoSource(repo);
       const res = await fetch("/api/repos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -420,7 +418,9 @@ export default function FindIdeasPage() {
     .filter((i) => i.kind === "repo_post" && i.status === "new" && i.meta.repoId === repoId)
     .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt) || (a.meta.order ?? 0) - (b.meta.order ?? 0));
   const repoCounts = Object.fromEntries(repos.map((r) => [r.id, postsOfRepo(r.id).length]));
-  const activeRepo = repos.find((r) => r.id === selectedRepoId) ?? repos[0] ?? null;
+  // The chip clicked is also the form's source; with none clicked the latest still shows its posts.
+  const selectedRepo = repos.find((r) => r.id === selectedRepoId) ?? null;
+  const activeRepo = selectedRepo ?? repos[0] ?? null;
 
   // Videos shows the selected video's ideas (VideoIdeas) instead of this grid.
   const visible = mode === "liked" ? liked : [...trendsBase].sort(byRankThenRecency);
@@ -478,7 +478,7 @@ export default function FindIdeasPage() {
 
         {/* Liked has no input of its own: it's fed by ♥ and Use on the other two shelves. */}
         {mode === "trends" && <SearchBox onSearched={onSearchActivity} onBusyChange={setSearchBusy} />}
-        {mode === "repo" && <RepoForm onCreated={onRepoCreated} />}
+        {mode === "repo" && <RepoForm onCreated={onRepoCreated} repo={selectedRepo} onClear={() => setSelectedRepoId(null)} />}
         {mode === "repo" && (
           <RepoChips repos={repos} counts={repoCounts} selectedId={activeRepo?.id ?? null} onSelect={setSelectedRepoId}
             onAgain={(repo) => void repoAgain(repo)} onRemove={(repo) => void removeRepo(repo)} againId={repoAgainId} />

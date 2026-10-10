@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { RepoForm, repoPayload } from "./repo-form";
+import type { Idea } from "@/components/idea-card";
+import { RepoForm, repoPayload, repoSource } from "./repo-form";
+
+const repo = (over: Partial<Idea>): Idea => ({
+  id: "r1", url: "file:///Users/me/dev/postecho", kind: "repo", title: "postecho", content: null, author: null,
+  status: "new", source: "manual", createdAt: "2026-10-10T10:00:00.000Z", meta: { sourceType: "folder", path: "/Users/me/dev/postecho" }, ...over,
+});
 
 const base = { path: "", githubUrl: "", brief: "", format: "x" as const };
 
@@ -24,6 +30,26 @@ describe("From a repo's form: what Create sends (posts from a repo, 2026-10-10)"
       ok: false, error: "Paste a public GitHub link, like https://github.com/owner/name.",
     });
     expect(repoPayload({ ...base, path: "/a", format: "linkedin" })).toMatchObject({ ok: true, body: { count: 6 } });
+  });
+
+  it("a chip's source: its folder or its link, with the new brief and format, whatever the inputs hold", () => {
+    const folder = repoSource(repo({}));
+    expect(folder).toEqual({ type: "folder", path: "/Users/me/dev/postecho" });
+    expect(repoPayload({ ...base, path: "/elsewhere", githubUrl: "nope", brief: " pricing ", format: "article", source: folder })).toEqual({
+      ok: true, body: { source: { type: "folder", path: "/Users/me/dev/postecho" }, brief: "pricing", format: "article", count: 2 },
+    });
+    expect(repoSource(repo({ url: "https://github.com/a/b", title: "a/b", meta: { sourceType: "github" } }))).toEqual({ type: "github", url: "https://github.com/a/b" });
+    // An older folder source without meta.path: its file:// url says it.
+    expect(repoSource(repo({ meta: { sourceType: "folder" } }))).toEqual({ type: "folder", path: "/Users/me/dev/postecho" });
+  });
+
+  it("a chip selected: its name as the source, × to clear it, no folder or link to fill", () => {
+    const html = renderToStaticMarkup(createElement(RepoForm, { onCreated: () => {}, repo: repo({}), onClear: () => {} }));
+    expect(html).toContain(">postecho<");
+    expect(html).toContain('aria-label="Clear postecho"');
+    expect(html).not.toContain(">Choose a folder<");
+    expect(html).not.toContain('aria-label="GitHub link"');
+    expect(html).toContain(">Create<");
   });
 
   it("renders the two sources, the formats, no count and the note said once", () => {

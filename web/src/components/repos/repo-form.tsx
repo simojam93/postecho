@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { Idea } from "@/components/idea-card";
 import { refreshWork } from "@/components/work-status";
 import { parseGithubUrl } from "@/lib/repo-source";
 import type { RepoFormat } from "./repo-steps";
@@ -23,23 +24,32 @@ const PICK_MAX_MS = 5 * 60_000;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export type RepoFormValues = { path: string; githubUrl: string; brief: string; format: RepoFormat };
-export type RepoPostsBody = {
-  source: { type: "folder"; path: string } | { type: "github"; url: string };
-  brief: string;
-  format: RepoFormat;
-  count: number;
-};
+export type RepoSource = { type: "folder"; path: string } | { type: "github"; url: string };
+/** `source`: a chip's, selected; it wins over the folder and link fields. */
+export type RepoFormValues = { path: string; githubUrl: string; brief: string; format: RepoFormat; source?: RepoSource | null };
+export type RepoPostsBody = { source: RepoSource; brief: string; format: RepoFormat; count: number };
+
+/** A source chip's repo as POST /api/repos takes it: its folder (meta.path, else its file:// url) or its link. */
+export function repoSource(repo: Idea): RepoSource {
+  if (repo.meta.sourceType === "folder") {
+    const path = repo.meta.path ?? (repo.url ?? "").replace(/^file:\/\//, "");
+    return { type: "folder", path };
+  }
+  return { type: "github", url: repo.url ?? "" };
+}
 
 /**
  * What Create sends to POST /api/repos, or why it can't yet: a GitHub link when there is one
- * (typing it clears the folder), else the folder. The route checks again and says the same.
+ * (typing it clears the folder), else the folder; a selected chip's source before either. The
+ * route checks again and says the same.
  */
 export function repoPayload(values: RepoFormValues): { ok: true; body: RepoPostsBody } | { ok: false; error: string } {
   const githubUrl = values.githubUrl.trim();
   const path = values.path.trim();
-  let source: RepoPostsBody["source"];
-  if (githubUrl) {
+  let source: RepoSource;
+  if (values.source) {
+    source = values.source;
+  } else if (githubUrl) {
     if (!parseGithubUrl(githubUrl)) return { ok: false, error: "Paste a public GitHub link, like https://github.com/owner/name." };
     source = { type: "github", url: githubUrl };
   } else if (path) {
@@ -56,9 +66,11 @@ const inputCls = "rounded-lg border border-border bg-surface px-3 py-2 text-sm o
  * From a repo's box (spec 2026-10-10): the source, a folder chosen with the Mac's own picker
  * (POST /api/repos/pick, then its pick_folder job) or typed, or a GitHub link; what the posts are
  * about; the format; Create. The job's progress and posts show below, under the
- * source's chip (RepoPosts).
+ * source's chip (RepoPosts). A chip clicked becomes the source (`repo`, the page's selection) and
+ * stays after Create, so the same repo can be asked other things; its × (`onClear`) brings the
+ * folder and link back.
  */
-export function RepoForm({ onCreated }: { onCreated: (ideaId: string) => void }) {
+export function RepoForm({ onCreated, repo = null, onClear }: { onCreated: (ideaId: string) => void; repo?: Idea | null; onClear?: () => void }) {
   const [path, setPath] = useState("");
   const [githubUrl, setGithubUrl] = useState("");
   // The path field shows once a folder is chosen, or when the picker can't open (it takes focus then).
@@ -118,7 +130,7 @@ export function RepoForm({ onCreated }: { onCreated: (ideaId: string) => void })
 
   async function create() {
     if (busy) return;
-    const payload = repoPayload({ path, githubUrl, brief, format });
+    const payload = repoPayload({ path, githubUrl, brief, format, source: repo ? repoSource(repo) : null });
     if (!payload.ok) { setError(payload.error); return; }
     setBusy(true);
     setError(null);
@@ -146,22 +158,32 @@ export function RepoForm({ onCreated }: { onCreated: (ideaId: string) => void })
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={() => void chooseFolder()} disabled={picking}
-          className="rounded-full border border-border px-4 py-2 text-sm text-text-dim hover:text-text disabled:opacity-50">
-          {picking ? "Choosing…" : "Choose a folder"}
-        </button>
-        {pathShown && (
-          <input value={path} autoFocus={pathFocus} aria-label="Folder path" placeholder="/Users/you/dev/project"
-            onChange={(e) => { setPath(e.target.value); if (e.target.value) setGithubUrl(""); }}
+      {repo ? (
+        <span className="inline-flex w-fit max-w-full items-center rounded-full border border-text-dim bg-surface-2 text-sm text-text">
+          <span className="truncate py-1.5 pl-4 pr-1">{repo.title ?? repo.url}</span>
+          <button type="button" onClick={onClear} aria-label={`Clear ${repo.title ?? repo.url}`}
+            className="rounded-r-full py-1.5 pl-1 pr-3 text-text-dim hover:text-text">
+            ×
+          </button>
+        </span>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={() => void chooseFolder()} disabled={picking}
+            className="rounded-full border border-border px-4 py-2 text-sm text-text-dim hover:text-text disabled:opacity-50">
+            {picking ? "Choosing…" : "Choose a folder"}
+          </button>
+          {pathShown && (
+            <input value={path} autoFocus={pathFocus} aria-label="Folder path" placeholder="/Users/you/dev/project"
+              onChange={(e) => { setPath(e.target.value); if (e.target.value) setGithubUrl(""); }}
+              onKeyDown={(e) => e.key === "Enter" && void create()}
+              className={`min-w-0 flex-1 ${inputCls}`} />
+          )}
+          <input value={githubUrl} aria-label="GitHub link" placeholder="Or paste a GitHub link"
+            onChange={(e) => { setGithubUrl(e.target.value); if (e.target.value) setPath(""); }}
             onKeyDown={(e) => e.key === "Enter" && void create()}
             className={`min-w-0 flex-1 ${inputCls}`} />
-        )}
-        <input value={githubUrl} aria-label="GitHub link" placeholder="Or paste a GitHub link"
-          onChange={(e) => { setGithubUrl(e.target.value); if (e.target.value) setPath(""); }}
-          onKeyDown={(e) => e.key === "Enter" && void create()}
-          className={`min-w-0 flex-1 ${inputCls}`} />
-      </div>
+        </div>
+      )}
       <p className="text-xs text-text-dim">The repository&apos;s content goes to Claude to write the posts.</p>
       <input value={brief} maxLength={BRIEF_MAX} aria-label="What the posts are about"
         placeholder="What they're about, like the launch of tier gating"
