@@ -313,3 +313,34 @@ describe("LinkedIn tags as a note in the text (2026-09-25)", () => {
     expect(editPrompt({ ...base, mode: "sync_linkedin" })).toContain("The X post's @handles become the names they stand for, each with that note.");
   });
 });
+
+describe("repoPostsPrompt (posts from a repo, 2026-10-10)", () => {
+  it("names the repo, carries the brief, and says to explore it with the read tools from the README and docs", async () => {
+    const { repoPostsPrompt } = await import("./prompts.js");
+    const p = repoPostsPrompt({ repoName: "postecho", brief: "the launch of tier gating", format: "x", count: 3 });
+    expect(p).toContain("postecho");
+    expect(p).toContain("the launch of tier gating");
+    expect(p).toMatch(/Read, Glob and Grep/);
+    expect(p).toMatch(/README/);
+    expect(p).toMatch(/docs/);
+    expect(p).toMatch(/exactly 3 /);
+  });
+
+  it("with no brief, asks for the most interesting recent work", async () => {
+    const { repoPostsPrompt } = await import("./prompts.js");
+    const p = repoPostsPrompt({ repoName: "a/b", brief: "  ", format: "x", count: 2 });
+    expect(p).toMatch(/most interesting recent work/);
+    expect(p).not.toMatch(/The posts are about/);
+  });
+
+  it("states each format's limits", async () => {
+    const { repoPostsPrompt } = await import("./prompts.js");
+    const base = { repoName: "a/b", brief: "", count: 1 };
+    expect(repoPostsPrompt({ ...base, format: "x" })).toMatch(/at most 280 characters/);
+    expect(repoPostsPrompt({ ...base, format: "linkedin" })).toMatch(/600-1,200 characters/);
+    const article = repoPostsPrompt({ ...base, format: "article" });
+    expect(article).toMatch(/title of up to 100 characters/);
+    expect(article).toMatch(/600-1,500 words/);
+    expect(article).toMatch(/short section headings as plain lines/);
+  });
+});

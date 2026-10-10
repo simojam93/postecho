@@ -258,3 +258,106 @@ export function parseVoiceResult(present: { x: boolean; linkedin: boolean }): (v
   const schema = z.object(shape).strict();
   return (value: unknown) => schema.parse(value) as { xText?: string; linkedinText?: string };
 }
+
+// ---------------------------------------------------------------------------
+// Posts from a repo (2026-10-10): { posts: [{ text, title? }] } in one format.
+// The JSON Schema holds Claude to the format's window; the zod check keeps
+// each item inside the wider limits the web stores and drops the rest, so one
+// long post doesn't cost the whole run (none left is a failure, retried once).
+// ---------------------------------------------------------------------------
+
+const REPO_MAX_ITEMS = 6;
+const ARTICLE_TITLE_MAX_CHARS = 100;
+const ARTICLE_MAX_CHARS = 12000;
+
+export const REPO_X_SCHEMA = {
+  type: "object",
+  properties: {
+    posts: {
+      type: "array",
+      minItems: 1,
+      maxItems: REPO_MAX_ITEMS,
+      items: {
+        type: "object",
+        properties: { text: { type: "string", minLength: 1, maxLength: X_MAX_CHARS } },
+        required: ["text"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["posts"],
+  additionalProperties: false,
+} as const;
+
+export const REPO_LINKEDIN_SCHEMA = {
+  type: "object",
+  properties: {
+    posts: {
+      type: "array",
+      minItems: 1,
+      maxItems: REPO_MAX_ITEMS,
+      items: {
+        type: "object",
+        properties: { text: { type: "string", minLength: LINKEDIN_MIN_CHARS, maxLength: LINKEDIN_MAX_CHARS } },
+        required: ["text"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["posts"],
+  additionalProperties: false,
+} as const;
+
+export const REPO_ARTICLE_SCHEMA = {
+  type: "object",
+  properties: {
+    posts: {
+      type: "array",
+      minItems: 1,
+      maxItems: REPO_MAX_ITEMS,
+      items: {
+        type: "object",
+        properties: {
+          title: { type: "string", minLength: 1, maxLength: ARTICLE_TITLE_MAX_CHARS },
+          text: { type: "string", minLength: 1, maxLength: ARTICLE_MAX_CHARS },
+        },
+        required: ["title", "text"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["posts"],
+  additionalProperties: false,
+} as const;
+
+export type RepoFormat = "x" | "linkedin" | "article";
+export type RepoPost = { text: string; title?: string };
+
+export const REPO_SCHEMAS: Record<RepoFormat, object> = {
+  x: REPO_X_SCHEMA,
+  linkedin: REPO_LINKEDIN_SCHEMA,
+  article: REPO_ARTICLE_SCHEMA,
+};
+
+const REPO_ITEMS: Record<RepoFormat, z.ZodType<RepoPost>> = {
+  x: z.object({ text: z.string().trim().min(1).max(X_MAX_CHARS) }),
+  // Up to the revision ceiling, what the web stores: a little over 1,200 isn't worth losing.
+  linkedin: z.object({ text: z.string().trim().min(LINKEDIN_MIN_CHARS).max(REVISE_LINKEDIN_MAX_CHARS) }),
+  article: z.object({
+    title: z.string().trim().min(1).max(ARTICLE_TITLE_MAX_CHARS),
+    text: z.string().trim().min(1).max(ARTICLE_MAX_CHARS),
+  }),
+};
+
+export function parseRepoPosts(format: RepoFormat): (value: unknown) => { posts: RepoPost[] } {
+  const item = REPO_ITEMS[format];
+  return (value: unknown) => {
+    const { posts } = z.object({ posts: z.array(z.unknown()) }).parse(value);
+    const kept = posts.flatMap((p) => {
+      const r = item.safeParse(p);
+      return r.success ? [r.data] : [];
+    });
+    if (kept.length === 0) throw new Error(`repo_posts: no ${format} post within its limits`);
+    return { posts: kept };
+  };
+}

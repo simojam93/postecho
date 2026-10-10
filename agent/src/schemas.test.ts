@@ -189,3 +189,39 @@ describe("edit schemas", () => {
     expect(() => parse({ xText: "ok", linkedinText: "extra" })).toThrow();
   });
 });
+
+describe("posts from a repo (2026-10-10)", () => {
+  it("X posts: at most 280 characters, longer ones dropped", async () => {
+    const { parseRepoPosts, REPO_X_SCHEMA } = await import("./schemas.js");
+    expect(REPO_X_SCHEMA.properties.posts.items.properties.text.maxLength).toBe(280);
+    const parse = parseRepoPosts("x");
+    expect(parse({ posts: [{ text: "short" }, { text: "x".repeat(281) }] })).toEqual({ posts: [{ text: "short" }] });
+    expect(() => parse({ posts: [{ text: "x".repeat(281) }] })).toThrow();
+  });
+
+  it("LinkedIn posts: 600-4,000 characters kept, the rest dropped", async () => {
+    const { parseRepoPosts, REPO_LINKEDIN_SCHEMA } = await import("./schemas.js");
+    expect(REPO_LINKEDIN_SCHEMA.properties.posts.items.properties.text).toMatchObject({ minLength: 600, maxLength: 1200 });
+    const parse = parseRepoPosts("linkedin");
+    const ok = "l".repeat(2000);
+    expect(parse({ posts: [{ text: ok }, { text: "too short" }, { text: "l".repeat(4001) }] })).toEqual({ posts: [{ text: ok }] });
+  });
+
+  it("articles: a title up to 100 characters and a body up to 12,000", async () => {
+    const { parseRepoPosts, REPO_ARTICLE_SCHEMA } = await import("./schemas.js");
+    expect(REPO_ARTICLE_SCHEMA.properties.posts.items.required).toEqual(["title", "text"]);
+    const parse = parseRepoPosts("article");
+    const body = "b".repeat(5000);
+    expect(parse({ posts: [{ title: "T", text: body }] })).toEqual({ posts: [{ title: "T", text: body }] });
+    expect(parse({ posts: [{ title: "T", text: body }, { text: body }, { title: "t".repeat(101), text: body }, { title: "T", text: "b".repeat(12001) }] }))
+      .toEqual({ posts: [{ title: "T", text: body }] });
+    expect(() => parse({ posts: [{ text: body }] })).toThrow();
+  });
+
+  it("no top-level combinators in any of the three", async () => {
+    const { REPO_X_SCHEMA, REPO_LINKEDIN_SCHEMA, REPO_ARTICLE_SCHEMA } = await import("./schemas.js");
+    for (const s of [REPO_X_SCHEMA, REPO_LINKEDIN_SCHEMA, REPO_ARTICLE_SCHEMA]) {
+      expect(Object.keys(s)).toEqual(["type", "properties", "required", "additionalProperties"]);
+    }
+  });
+});

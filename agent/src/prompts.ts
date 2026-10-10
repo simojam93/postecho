@@ -1,5 +1,6 @@
 import { AI_STYLE_FINGERPRINTS } from "jev-judge";
 import type { Profile } from "./postecho.js";
+import type { RepoFormat } from "./schemas.js";
 
 /**
  * Splits a raw tone-examples blob (one Settings textarea, per spec §4
@@ -477,5 +478,65 @@ export function editPrompt(o: EditPromptOptions): string {
       'Return a JSON object: { "xText": "...", "linkedinText": "..." } — include only the field(s) you changed.',
     );
   }
+  return lines.join("\n");
+}
+
+// ---------------------------------------------------------------------------
+// Posts from a repo (2026-10-10): Claude Code runs inside the repository with
+// Read, Glob and Grep only (claude.ts's readOnlyTools) and writes from what it
+// finds there.
+// ---------------------------------------------------------------------------
+
+export type RepoPostsPromptOptions = {
+  /** "postecho" for a folder, "owner/name" for a GitHub repository. */
+  repoName: string;
+  /** What the posts are about, in the owner's words; may be empty. */
+  brief: string;
+  format: RepoFormat;
+  count: number;
+};
+
+const REPO_FORMAT_RULES: Record<RepoFormat, { what: string; rule: string; shape: string }> = {
+  x: {
+    what: "X posts",
+    rule: "Each one is an X post of at most 280 characters: one idea, with the detail that makes it worth reading.",
+    shape: '{ "posts": [ { "text": "..." } ] }',
+  },
+  linkedin: {
+    what: "LinkedIn posts",
+    rule: "Each one is a LinkedIn post of 600-1,200 characters, in short paragraphs, with a concrete story or lesson from the work.",
+    shape: '{ "posts": [ { "text": "..." } ] }',
+  },
+  article: {
+    what: "X articles",
+    rule:
+      "Each one is an X article: a title of up to 100 characters and a body of 600-1,500 words, in plain paragraphs " +
+      "with short section headings as plain lines (no markdown, no # or **).",
+    shape: '{ "posts": [ { "title": "...", "text": "the body" } ] }',
+  },
+};
+
+/** User prompt for repo_posts: explore the repository Claude is running in, then write `count` items in one format. */
+export function repoPostsPrompt(o: RepoPostsPromptOptions): string {
+  const f = REPO_FORMAT_RULES[o.format];
+  const brief = o.brief.trim();
+  const lines = [
+    `You are in the repository "${o.repoName}", your working directory. Explore it with Read, Glob and Grep: start from the README and the docs, then read the code ${brief ? "the brief points to" : "that matters most"}.`,
+    brief
+      ? `The posts are about: ${brief}`
+      : "There is no brief: pick the most interesting recent work in it (a changelog, dated plans or specs, the newest parts of the code say what that is).",
+    "",
+    `Then write exactly ${o.count} ${f.what} the owner could publish, each on a different point: never two about the same one.`,
+    f.rule,
+    "The repository is usually the owner's own work: write as the person who built it, in the first person. When the README makes clear it is someone else's project, write the owner's take on it instead, never claiming it as theirs.",
+    "Be specific: what it does, a decision and its reason, a number or a detail from the code. Never invent features, numbers or results the repository doesn't show.",
+    "No file paths, code blocks or function names unless one is the point: write for people who will never open the code.",
+    o.format === "linkedin" ? LINKEDIN_NAMES_RULE : X_TAGS_RULE,
+    "Write in English.",
+    "",
+    HUMAN_WRITING_RULES,
+    "",
+    `Return a JSON object: ${f.shape}.`,
+  ];
   return lines.join("\n");
 }
