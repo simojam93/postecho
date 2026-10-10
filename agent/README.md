@@ -7,7 +7,11 @@ cost). See `docs/plans/2026-09-21-m2-agent-generation.md` (Part B)
 and spec §2.2 for the full design.
 
 Kinds served: `generate_from_video`, `generate_from_idea`, `revise_draft`,
-`image_prompt`, `analyze_style`, `video_ideas`, `learn_style`.
+`image_prompt`, `analyze_style`, `video_ideas`, `learn_style`, `repo_posts`, `pick_folder`.
+
+`repo_posts` runs Claude Code inside a folder, or a shallow clone of a public GitHub repository kept in
+`~/.postecho/repos/`, with only `Read`, `Glob` and `Grep` allowed and the repository's own Claude settings
+ignored. `pick_folder` opens the macOS folder picker on this computer.
 
 ## Setup
 

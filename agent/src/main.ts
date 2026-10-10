@@ -1,7 +1,9 @@
 import { createClaudeRunner } from "./claude.js";
 import { loadConfig } from "./config.js";
 import { HandlerDeps, runHandler, SERVED_KINDS } from "./handlers.js";
+import { pickFolder } from "./pick-folder.js";
 import { createPostEchoClient, type Job } from "./postecho.js";
+import { resolveRepoOnThisComputer } from "./repo-source.js";
 import { fetchTranscript } from "./transcript.js";
 
 const HEARTBEAT_INTERVAL_MS = 60_000;
@@ -13,8 +15,8 @@ const CLAIM_ERROR_BACKOFF_MS = 2_000;
  * after that would be lost while the job ran twice.
  */
 const JOB_BUDGET_MS = 9 * 60_000;
-/** The jobs that read a whole video's transcript: their Claude calls get twice the time. */
-const LONG_READS = new Set(["video_ideas", "generate_from_video"]);
+/** The jobs that read a whole video's transcript, or a whole repository: their Claude calls get twice the time. */
+const LONG_READS = new Set(["video_ideas", "generate_from_video", "repo_posts"]);
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -56,6 +58,8 @@ export async function runAgent(): Promise<void> {
     runClaudeJson: (opts) => runner.runClaudeJson(opts),
     fetchTranscript,
     checkSlop: (text, platform) => client.slopCheck(text, platform),
+    resolveRepo: resolveRepoOnThisComputer,
+    pickFolder: () => pickFolder(),
   };
 
   let stopping = false;

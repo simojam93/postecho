@@ -1,6 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Job, Profile } from "./postecho.js";
-import { DRAFTS_SCHEMA, IMAGE_PROMPT_SCHEMA, REVISE_SCHEMA, STYLE_GUIDE_SCHEMA, X_DRAFTS_SCHEMA } from "./schemas.js";
+import {
+  DRAFTS_SCHEMA,
+  IMAGE_PROMPT_SCHEMA,
+  REPO_ARTICLE_SCHEMA,
+  REPO_LINKEDIN_SCHEMA,
+  REPO_X_SCHEMA,
+  REVISE_SCHEMA,
+  STYLE_GUIDE_SCHEMA,
+  X_DRAFTS_SCHEMA,
+} from "./schemas.js";
 import { TranscriptUnavailable } from "./transcript.js";
 import {
   HANDLERS,
@@ -9,6 +18,8 @@ import {
   handleGenerateFromVideo,
   handleImagePrompt,
   handleLearnStyle,
+  handlePickFolder,
+  handleRepoPosts,
   handleReviseDraft,
   handleVideoIdeas,
   HUMANIZE_MAX_ROUNDS,
@@ -56,23 +67,34 @@ function makeJob(overrides: Partial<Job> = {}): Job {
  * can't be typed with a non-generic dependency here).
  */
 function fakeRunClaudeJson(fixture: unknown) {
-  const calls: Array<{ prompt: string; system: string; schema: object }> = [];
+  const calls: Array<{ prompt: string; system: string; schema: object; cwd?: string; readOnlyTools?: boolean }> = [];
   async function fn<T>(opts: {
     prompt: string;
     system: string;
     schema: object;
     parse: (value: unknown) => T;
+    cwd?: string;
+    readOnlyTools?: boolean;
   }): Promise<T> {
-    calls.push({ prompt: opts.prompt, system: opts.system, schema: opts.schema });
+    calls.push({
+      prompt: opts.prompt,
+      system: opts.system,
+      schema: opts.schema,
+      ...(opts.cwd !== undefined ? { cwd: opts.cwd } : {}),
+      ...(opts.readOnlyTools !== undefined ? { readOnlyTools: opts.readOnlyTools } : {}),
+    });
     return opts.parse(fixture);
   }
   return { fn, calls };
 }
 
 describe("HANDLERS / SERVED_KINDS", () => {
-  it("serves exactly the seven agent kinds", () => {
+  it("serves exactly the nine agent kinds", () => {
     expect(SERVED_KINDS.sort()).toEqual(
-      ["analyze_style", "generate_from_idea", "generate_from_video", "image_prompt", "learn_style", "revise_draft", "video_ideas"].sort(),
+      [
+        "analyze_style", "generate_from_idea", "generate_from_video", "image_prompt", "learn_style", "pick_folder",
+        "repo_posts", "revise_draft", "video_ideas",
+      ].sort(),
     );
     for (const kind of SERVED_KINDS) expect(typeof HANDLERS[kind]).toBe("function");
   });
@@ -817,5 +839,96 @@ describe("handleLearnStyle", () => {
     await expect(handleLearnStyle({ guide: "g", lessons: [] }, deps)).rejects.toThrow("learn_style needs a lesson");
     const bad: HandlerDeps = { getProfile: async () => emptyProfile(), runClaudeJson: fakeRunClaudeJson({ guide: "" }).fn };
     await expect(handleLearnStyle({ guide: "g", lessons }, bad)).rejects.toThrow("guide update");
+  });
+});
+
+describe("handleRepoPosts (posts from a repo, 2026-10-10)", () => {
+  const folder = { type: "folder" as const, path: "/Users/me/dev/postecho" };
+  const github = { type: "github" as const, url: "https://github.com/a/b" };
+
+  function repoDeps(fixture: unknown, resolved = { dir: "/Users/me/dev/postecho", name: "postecho" }) {
+    const claude = fakeRunClaudeJson(fixture);
+    const progress: Array<Record<string, unknown>> = [];
+    const resolveRepo = vi.fn(async () => resolved);
+    const deps: HandlerDeps = {
+      getProfile: async () => emptyProfile(),
+      runClaudeJson: claude.fn,
+      resolveRepo,
+      reportProgress: async (p) => { progress.push(p); },
+    };
+    return { deps, claude, progress, resolveRepo };
+  }
+
+  it("reads a folder with read tools only, in that folder, and returns the posts trimmed to the count", async () => {
+    const { deps, claude, progress, resolveRepo } = repoDeps({ posts: [{ text: "one" }, { text: "two" }, { text: "three" }] });
+    const result = await handleRepoPosts({ ideaId: "i1", source: folder, brief: "tier gating", format: "x", count: 2 }, deps);
+    expect(resolveRepo).toHaveBeenCalledWith(folder);
+    expect(result).toEqual({ posts: [{ text: "one" }, { text: "two" }], repoName: "postecho" });
+    expect(progress).toEqual([{ kind: "repo_posts", phase: "reading" }, { kind: "repo_posts", phase: "writing" }]);
+    const [call] = claude.calls;
+    expect(call!.cwd).toBe("/Users/me/dev/postecho");
+    expect(call!.readOnlyTools).toBe(true);
+    expect(call!.schema).toBe(REPO_X_SCHEMA);
+    expect(call!.prompt).toContain("postecho");
+    expect(call!.prompt).toContain("tier gating");
+    expect(call!.prompt).toContain("exactly 2 X posts");
+  });
+
+  it("says it's fetching first for a GitHub repository, and writes articles with titles", async () => {
+    const article = { title: "How it works", text: "b".repeat(3000) };
+    const { deps, claude, progress } = repoDeps({ posts: [article] }, { dir: "/repos/a__b", name: "a/b" });
+    const result = await handleRepoPosts({ ideaId: "i1", source: github, brief: "", format: "article", count: 1 }, deps);
+    expect(result).toEqual({ posts: [article], repoName: "a/b" });
+    expect(progress.map((p) => p.phase)).toEqual(["fetching", "reading", "writing"]);
+    expect(claude.calls[0]!.schema).toBe(REPO_ARTICLE_SCHEMA);
+    expect(claude.calls[0]!.cwd).toBe("/repos/a__b");
+  });
+
+  it("LinkedIn posts use their own schema", async () => {
+    const { deps, claude } = repoDeps({ posts: [{ text: LI_OK }] });
+    await handleRepoPosts({ ideaId: "i1", source: folder, brief: "", format: "linkedin", count: 1 }, deps);
+    expect(claude.calls[0]!.schema).toBe(REPO_LINKEDIN_SCHEMA);
+  });
+
+  it("refuses a payload out of bounds before reading anything", async () => {
+    const { deps, resolveRepo } = repoDeps({ posts: [{ text: "one" }] });
+    const base = { ideaId: "i1", source: folder, brief: "", format: "x", count: 3 };
+    await expect(handleRepoPosts({ ...base, count: 0 }, deps)).rejects.toThrow();
+    await expect(handleRepoPosts({ ...base, count: 7 }, deps)).rejects.toThrow();
+    await expect(handleRepoPosts({ ...base, format: "thread" }, deps)).rejects.toThrow();
+    await expect(handleRepoPosts({ ...base, source: { type: "folder", path: "" } }, deps)).rejects.toThrow();
+    expect(resolveRepo).not.toHaveBeenCalled();
+  });
+
+  it("a source that can't be read fails the job with its sentence", async () => {
+    const { deps } = repoDeps({ posts: [] });
+    deps.resolveRepo = async () => { throw new Error("This folder doesn't exist, or isn't a folder: /nope"); };
+    const outcome = await runHandler(
+      makeJob({ kind: "repo_posts", payload: { ideaId: "i1", source: { type: "folder", path: "/nope" }, brief: "", format: "x", count: 3 } }),
+      deps,
+    );
+    expect(outcome).toEqual({ ok: false, error: "This folder doesn't exist, or isn't a folder: /nope" });
+  });
+});
+
+describe("handlePickFolder (posts from a repo, 2026-10-10)", () => {
+  it("returns the folder the owner picked", async () => {
+    const deps: HandlerDeps = { getProfile: async () => emptyProfile(), runClaudeJson: fakeRunClaudeJson({}).fn, pickFolder: async () => ({ path: "/Users/me/dev/postecho" }) };
+    expect(await handlePickFolder({}, deps)).toEqual({ path: "/Users/me/dev/postecho" });
+  });
+
+  it("says when the owner cancelled", async () => {
+    const deps: HandlerDeps = { getProfile: async () => emptyProfile(), runClaudeJson: fakeRunClaudeJson({}).fn, pickFolder: async () => ({ cancelled: true }) };
+    expect(await handlePickFolder({}, deps)).toEqual({ cancelled: true });
+  });
+
+  it("fails with the picker's sentence when there is none", async () => {
+    const deps: HandlerDeps = {
+      getProfile: async () => emptyProfile(),
+      runClaudeJson: fakeRunClaudeJson({}).fn,
+      pickFolder: async () => { throw new Error("No folder picker on this computer: type the path instead."); },
+    };
+    expect(await runHandler(makeJob({ kind: "pick_folder", payload: {} }), deps))
+      .toEqual({ ok: false, error: "No folder picker on this computer: type the path instead." });
   });
 });

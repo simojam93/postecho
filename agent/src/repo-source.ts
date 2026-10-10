@@ -1,4 +1,8 @@
+import { execFile } from "node:child_process";
+import { mkdir, stat } from "node:fs/promises";
+import { homedir } from "node:os";
 import { basename, join } from "node:path";
+import { promisify } from "node:util";
 
 /** Where the posts come from (posts from a repo, 2026-10-10): a folder on this computer, or a public GitHub repository. */
 export type RepoSource = { type: "folder"; path: string } | { type: "github"; url: string };
@@ -55,4 +59,37 @@ export async function resolveRepo(source: RepoSource, deps: ResolveRepoDeps): Pr
     throw new Error(`This repository isn't public, or doesn't exist: ${source.url}`);
   }
   return { dir, name };
+}
+
+/** Where GitHub clones live on this computer. */
+export const REPOS_DIR = join(homedir(), ".postecho", "repos");
+
+/** A clone or fetch that takes longer than this is stuck, not slow. */
+const GIT_TIMEOUT_MS = 3 * 60_000;
+
+/**
+ * The real git. GIT_TERMINAL_PROMPT=0: a private repository would otherwise
+ * ask for a username on a terminal nobody is watching and the job would wait
+ * until its timeout instead of failing at once.
+ */
+export const nodeGit: GitRunner = async (args, cwd) => {
+  await promisify(execFile)("git", args, {
+    ...(cwd ? { cwd } : {}),
+    env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
+    timeout: GIT_TIMEOUT_MS,
+  });
+};
+
+async function statOrNull(p: string): Promise<{ isDirectory(): boolean } | null> {
+  try {
+    return await stat(p);
+  } catch {
+    return null;
+  }
+}
+
+/** resolveRepo with real git, the real file system and ~/.postecho/repos (created on first use). */
+export async function resolveRepoOnThisComputer(source: RepoSource): Promise<{ dir: string; name: string }> {
+  if (source.type === "github") await mkdir(REPOS_DIR, { recursive: true });
+  return resolveRepo(source, { git: nodeGit, reposDir: REPOS_DIR, stat: statOrNull });
 }

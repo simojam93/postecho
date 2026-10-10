@@ -183,6 +183,9 @@ function buildArgs(model: string, schema: object, system: string, readOnlyTools 
     "--no-session-persistence",
     "--system-prompt",
     system,
+    // Reading a repository, possibly a stranger's public one: its own
+    // .claude settings (hooks run shell commands) and .mcp.json stay unloaded.
+    ...(readOnlyTools ? ["--setting-sources", "user", "--strict-mcp-config"] : []),
     "--allowedTools",
     readOnlyTools ? "Read Glob Grep" : "",
   ];

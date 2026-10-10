@@ -10,6 +10,7 @@ import {
   styleGuidePrompt,
   systemPrompt,
   videoPostsPrompt,
+  repoPostsPrompt,
   type EditMode,
   type GeneratePromptOptions,
   type JevVerdict,
@@ -31,6 +32,8 @@ import {
   parseSyncLinkedinResult,
   parseSyncXResult,
   parseVoiceResult,
+  parseRepoPosts,
+  REPO_SCHEMAS,
   REVISE_SCHEMA,
   STYLE_GUIDE_SCHEMA,
   SYNC_LINKEDIN_SCHEMA,
@@ -38,6 +41,8 @@ import {
   voiceSchema,
 } from "./schemas.js";
 import { fetchTranscript as defaultFetchTranscript, normalizeTranscript, TranscriptUnavailable } from "./transcript.js";
+import type { PickFolderResult } from "./pick-folder.js";
+import type { RepoSource } from "./repo-source.js";
 
 /** What every handler needs, injected so tests can pass plain fakes instead of the real network/CLI/library. */
 export type RunClaudeJsonFn = <T>(opts: {
@@ -69,6 +74,10 @@ export type HandlerDeps = {
   checkSlop?: (text: string, platform?: "x" | "linkedin") => Promise<JevVerdict>;
   /** Live progress for the job being run (POST /api/agent/jobs/:id/progress). Best effort: a failure never fails the job. */
   reportProgress?: (progress: Record<string, unknown>) => Promise<void>;
+  /** repo_posts: the directory a source is read from (repo-source.ts's resolveRepo with real git and ~/.postecho/repos). */
+  resolveRepo?: (source: RepoSource) => Promise<{ dir: string; name: string }>;
+  /** pick_folder: the OS folder picker on this computer (pick-folder.ts). */
+  pickFolder?: () => Promise<PickFolderResult>;
 };
 
 const CountSchema = z.coerce.number().int().min(1).max(25).catch(3);
@@ -633,6 +642,64 @@ export async function handleLearnStyle(payload: unknown, deps: HandlerDeps): Pro
   });
 }
 
+// ---------------------------------------------------------------------------
+// Posts from a repo (2026-10-10): a folder on this computer or a public GitHub
+// repository, read by Claude Code in place with read tools only.
+// ---------------------------------------------------------------------------
+
+const RepoPostsPayload = z.object({
+  ideaId: z.string().min(1, "repo_posts needs an ideaId"),
+  source: z.discriminatedUnion("type", [
+    z.object({ type: z.literal("folder"), path: z.string().trim().min(1, "repo_posts needs a folder path") }),
+    z.object({ type: z.literal("github"), url: z.string().trim().min(1, "repo_posts needs a GitHub link") }),
+  ]),
+  brief: z.string().max(2000).nullish(),
+  format: z.enum(["x", "linkedin", "article"]),
+  count: z.number().int().min(1).max(6),
+});
+
+async function reportRepoPosts(deps: HandlerDeps, phase: "fetching" | "reading" | "writing"): Promise<void> {
+  if (!deps.reportProgress) return;
+  try { await deps.reportProgress({ kind: "repo_posts", phase }); } catch { /* a courtesy to the page */ }
+}
+
+/**
+ * repo_posts: the source, resolved to a directory (a GitHub repository is
+ * cloned or updated first, "fetching"), then one Claude Code run inside it
+ * that explores with Read, Glob and Grep ("reading") and writes the posts
+ * ("writing"). Reading and writing are that one call, which says nothing
+ * until it ends, so both are reported as it starts: the page ticks reading
+ * and waits on writing.
+ */
+export async function handleRepoPosts(
+  payload: unknown,
+  deps: HandlerDeps,
+): Promise<{ posts: Array<{ text: string; title?: string }>; repoName: string }> {
+  const p = RepoPostsPayload.parse(payload);
+  if (!deps.resolveRepo) throw new Error("repo_posts: this agent can't read repositories");
+  if (p.source.type === "github") await reportRepoPosts(deps, "fetching");
+  const repo = await deps.resolveRepo(p.source);
+  const profile = await deps.getProfile();
+  await reportRepoPosts(deps, "reading");
+  await reportRepoPosts(deps, "writing");
+  const { posts } = await deps.runClaudeJson({
+    prompt: repoPostsPrompt({ repoName: repo.name, brief: p.brief ?? "", format: p.format, count: p.count }),
+    system: systemPrompt(profile),
+    schema: REPO_SCHEMAS[p.format],
+    parse: parseRepoPosts(p.format),
+    cwd: repo.dir,
+    readOnlyTools: true,
+  });
+  const clean = hashtagsAllowed(profile) ? posts : posts.map((post) => ({ ...post, text: stripHashtagLines(post.text) }));
+  return { posts: clean.slice(0, p.count), repoName: repo.name };
+}
+
+/** pick_folder: the OS folder picker on this computer -> { path } or { cancelled: true }. */
+export async function handlePickFolder(_payload: unknown, deps: HandlerDeps): Promise<PickFolderResult> {
+  if (!deps.pickFolder) throw new Error("No folder picker on this computer: type the path instead.");
+  return deps.pickFolder();
+}
+
 type Handler = (payload: unknown, deps: HandlerDeps) => Promise<Record<string, unknown>>;
 
 /** Every kind this agent serves (see spec §2.2 and the plan's Part B preamble), mapped to its handler. */
@@ -644,6 +711,8 @@ export const HANDLERS: Record<string, Handler> = {
   analyze_style: handleAnalyzeStyle,
   video_ideas: handleVideoIdeas,
   learn_style: handleLearnStyle,
+  repo_posts: handleRepoPosts,
+  pick_folder: handlePickFolder,
 };
 
 export const SERVED_KINDS = Object.keys(HANDLERS);

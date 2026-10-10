@@ -145,6 +145,9 @@ describe("createClaudeRunner", () => {
     expect(capturedArgs[i + 1]).toBe("Read Glob Grep");
     expect(capturedArgs.filter((a) => a === "--allowedTools")).toHaveLength(1);
     expect(capturedArgs).not.toContain("");
+    // A cloned repository's own .claude settings (hooks) and .mcp.json are never loaded.
+    expect(capturedArgs[capturedArgs.indexOf("--setting-sources") + 1]).toBe("user");
+    expect(capturedArgs).toContain("--strict-mcp-config");
   });
 
   it("keeps no tools and no working directory otherwise", async () => {
