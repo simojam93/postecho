@@ -35,7 +35,7 @@ can use the description and chapters, or you can paste a transcript. Check facts
 
 ![Video drafts shown with fictional sample data](docs/media/video-posts.png)
 
-**Write.** Choose an idea for three drafts based on your writing examples and style guide.
+**Compose.** Choose an idea for three drafts based on your writing examples and style guide.
 Pick one and ask for changes, such as a shorter version or a LinkedIn post.
 
 ![Three sample drafts and the editor](docs/media/write.png)
@@ -75,10 +75,10 @@ npm run dev     # starts the web app and local agent
 ```
 
 Open the address `npm run dev` prints, http://localhost:3000 unless another program already uses that port, and log in with the password chosen or generated during setup.
-With sample data loaded, open Write to inspect the example drafts. Generating new text requires Claude Code.
+With sample data loaded, open Compose to inspect the example drafts. Generating new text requires Claude Code.
 
 For a first live task, add writing examples in Settings, search a topic in Find Ideas, and use a result
-to generate three drafts. Choose one and edit it in Write.
+to generate three drafts. Choose one and edit it in Compose.
 
 Add optional service keys in Settings. For online hosting, see [the deploy guide](docs/deploy.md).
 

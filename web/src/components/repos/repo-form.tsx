@@ -11,8 +11,8 @@ const FORMATS: { key: RepoFormat; label: string }[] = [
   { key: "linkedin", label: "LinkedIn post" },
   { key: "article", label: "X article" },
 ];
-const COUNTS = [1, 2, 3, 4, 5, 6];
-const DEFAULT_COUNT = 3;
+/** No count to pick (owner, 2026-10-10): six posts each time, two articles, which take far longer to write and read. */
+const countFor = (format: RepoFormat) => (format === "article" ? 2 : 6);
 const BRIEF_MAX = 500;
 
 /** How often a folder pick is looked at, and how long it may sit unclaimed before the Mac counts as offline. */
@@ -23,7 +23,7 @@ const PICK_MAX_MS = 5 * 60_000;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export type RepoFormValues = { path: string; githubUrl: string; brief: string; format: RepoFormat; count: number };
+export type RepoFormValues = { path: string; githubUrl: string; brief: string; format: RepoFormat };
 export type RepoPostsBody = {
   source: { type: "folder"; path: string } | { type: "github"; url: string };
   brief: string;
@@ -47,8 +47,7 @@ export function repoPayload(values: RepoFormValues): { ok: true; body: RepoPosts
   } else {
     return { ok: false, error: "Choose a folder, or paste a GitHub link." };
   }
-  const count = Math.min(COUNTS.length, Math.max(1, Math.round(values.count)));
-  return { ok: true, body: { source, brief: values.brief.trim().slice(0, BRIEF_MAX), format: values.format, count } };
+  return { ok: true, body: { source, brief: values.brief.trim().slice(0, BRIEF_MAX), format: values.format, count: countFor(values.format) } };
 }
 
 const inputCls = "rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-text-dim";
@@ -56,7 +55,7 @@ const inputCls = "rounded-lg border border-border bg-surface px-3 py-2 text-sm o
 /**
  * From a repo's box (spec 2026-10-10): the source, a folder chosen with the Mac's own picker
  * (POST /api/repos/pick, then its pick_folder job) or typed, or a GitHub link; what the posts are
- * about; how many and in which format; Create. The job's progress and posts show below, under the
+ * about; the format; Create. The job's progress and posts show below, under the
  * source's chip (RepoPosts).
  */
 export function RepoForm({ onCreated }: { onCreated: (ideaId: string) => void }) {
@@ -67,7 +66,6 @@ export function RepoForm({ onCreated }: { onCreated: (ideaId: string) => void })
   const [pathFocus, setPathFocus] = useState(false);
   const [brief, setBrief] = useState("");
   const [format, setFormat] = useState<RepoFormat>("x");
-  const [count, setCount] = useState(DEFAULT_COUNT);
   const [picking, setPicking] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -120,7 +118,7 @@ export function RepoForm({ onCreated }: { onCreated: (ideaId: string) => void })
 
   async function create() {
     if (busy) return;
-    const payload = repoPayload({ path, githubUrl, brief, format, count });
+    const payload = repoPayload({ path, githubUrl, brief, format });
     if (!payload.ok) { setError(payload.error); return; }
     setBusy(true);
     setError(null);
@@ -171,10 +169,6 @@ export function RepoForm({ onCreated }: { onCreated: (ideaId: string) => void })
         onKeyDown={(e) => e.key === "Enter" && void create()}
         className={inputCls} />
       <div className="flex flex-wrap items-center gap-2">
-        <select value={count} onChange={(e) => setCount(Number(e.target.value))} aria-label="How many"
-          className="rounded-full border border-border bg-surface px-3 py-1.5 text-sm outline-none focus:border-text-dim">
-          {COUNTS.map((n) => <option key={n} value={n}>{n}</option>)}
-        </select>
         <div role="radiogroup" aria-label="Format" className="flex w-fit gap-1 rounded-full bg-surface p-1">
           {FORMATS.map(({ key, label }) => (
             <button key={key} type="button" role="radio" aria-checked={format === key} onClick={() => setFormat(key)}

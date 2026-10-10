@@ -339,7 +339,7 @@ export function PlanView({ initialDay }: { initialDay?: DayKey } = {}) {
           {summary ?? (
             <>
               Nothing scheduled — pick a post in{" "}
-              <Link href="/create" className="underline hover:text-text">Write</Link> and press Schedule.
+              <Link href="/create" className="underline hover:text-text">Compose</Link> and press Schedule.
             </>
           )}
         </p>

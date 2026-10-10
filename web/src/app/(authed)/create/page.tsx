@@ -335,7 +335,7 @@ function WriteContent() {
    */
   async function removePost(ideaId: string) {
     if (removingIdeaId) return;
-    if (!window.confirm("Remove this post and its takes from Write? The idea stays in Liked.")) return;
+    if (!window.confirm("Remove this post and its takes from Compose? The idea stays in Liked.")) return;
     setRemovingIdeaId(ideaId);
     setActionError(null);
     try {
@@ -379,7 +379,7 @@ function WriteContent() {
         {postsError && <p className="text-sm text-danger">{postsError}</p>}
         <div className="flex items-start gap-3">
           <p className="text-sm text-text-dim">
-            Nothing in progress: press Use on an idea in <Link href="/" className="underline hover:text-text">Create posts</Link>.
+            Nothing in progress: press Use on an idea in <Link href="/" className="underline hover:text-text">Find Ideas</Link>.
           </p>
           <ArchiveButton refreshKey={postsKey} className="ml-auto" />
         </div>

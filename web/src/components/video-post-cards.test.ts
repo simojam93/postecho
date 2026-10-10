@@ -21,14 +21,14 @@ describe("a video's ready post", () => {
     expect(isVideoPost(null)).toBe(false);
   });
 
-  it("its card is the post itself, no title, with its ✦ and human score; Use opens it in Write", () => {
+  it("its card is the post itself, no title, with its ✦ and human score; Use opens it in Compose", () => {
     const html = renderToStaticMarkup(createElement(IdeaCard, { idea: post, onStatus: async () => {}, onUse: async () => {} }));
     expect(html).toContain("Cole reused one sentence for ten years.\nThat&#x27;s the whole trick.");
     expect(html).toContain("whitespace-pre-wrap");
     expect(html).not.toContain("font-semibold");
     expect(html).toContain(">✦ 82</span>");
     expect(html).toContain("How human it reads");
-    expect(html).toContain('data-tip="Edit and schedule it in Write"');
+    expect(html).toContain('data-tip="Edit and schedule it in Compose"');
   });
 
   it("in Write its source is the video, not the post again", () => {

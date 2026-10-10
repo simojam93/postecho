@@ -159,7 +159,7 @@ export function ShareActions({ id, sig, platform, text }: { id: string; sig: str
         {POST_ON[platform]}
       </button>
       {!composerUrl && platform === "x" && (
-        <p className="text-sm text-danger">This text is over 280 characters — trim it in Write before posting on X.</p>
+        <p className="text-sm text-danger">This text is over 280 characters — trim it in Compose before posting on X.</p>
       )}
       {fallback && (
         <p className="text-center text-sm text-text-dim">

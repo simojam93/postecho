@@ -298,7 +298,7 @@ export function IdeaCard({ idea, onStatus, onUse, inStyle = false, onStyle }: {
           <button
             onClick={handleUse}
             disabled={busy}
-            data-tip={readyPost ? "Edit and schedule it in Write" : "Write a post from it"}
+            data-tip={readyPost ? "Edit and schedule it in Compose" : "Write a post from it"}
             className="rounded-full bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink disabled:opacity-50"
           >
             {using ? (readyPost ? "Opening…" : "Reading…") : "Use"}

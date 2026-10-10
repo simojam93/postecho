@@ -72,8 +72,8 @@ const SOURCE_GUIDES: Array<KeyGuide["id"]> = ["bluesky", "youtube", "producthunt
 
 /** The loop, as the first step draws it. */
 const LOOP: Array<[tab: string, what: string]> = [
-  ["Create posts", "From your code or the news"],
-  ["Write", "Takes in your voice"],
+  ["Find Ideas", "From your code or the news"],
+  ["Compose", "Takes in your voice"],
   ["Calendar", "Your posts by date"],
 ];
 
@@ -82,7 +82,7 @@ export function WriteStep({ titleId }: { titleId: string }) {
   return (
     <div className="space-y-5">
       <div className="space-y-1">
-        <h2 id={titleId} className="text-lg font-semibold">Write: pick a take, make it yours</h2>
+        <h2 id={titleId} className="text-lg font-semibold">Compose: pick a take, make it yours</h2>
         <p className="text-sm text-text-dim">Press Use on an idea and PostEcho writes three takes in your voice. Pick one, change it by chatting with AI, then Schedule it on X or LinkedIn.</p>
       </div>
       <div aria-hidden className="flex items-center gap-2">

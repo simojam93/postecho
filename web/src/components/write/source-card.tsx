@@ -56,7 +56,7 @@ export function SourceCard({ idea, onRemove, removeBusy = false }: {
             type="button"
             onClick={onRemove}
             disabled={removeBusy}
-            data-tip="Remove this post from Write"
+            data-tip="Remove this post from Compose"
             className="ml-auto shrink-0 text-xs text-text-dim hover:text-danger disabled:opacity-50"
           >
             {removeBusy ? "Removing…" : "Remove post"}

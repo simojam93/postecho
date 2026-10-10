@@ -80,7 +80,7 @@ export function InProgressStrip({ chips, currentIdeaId, removingIdeaId, onSelect
               type="button"
               onClick={() => onRemove(chip.ideaId)}
               disabled={removingIdeaId !== null}
-              data-tip="Remove this post from Write"
+              data-tip="Remove this post from Compose"
               aria-label={`Remove post ${chip.label}`}
               className="shrink-0 rounded-r-full py-1.5 pl-1 pr-2.5 text-text-dim hover:text-danger disabled:opacity-50"
             >

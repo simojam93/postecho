@@ -38,7 +38,7 @@ describe("the welcome, redone (2026-09-27: \"l'onboarding a te sembra chiaro? mm
 
   it("a page for Write and one for Calendar (2026-09-27: \"mostrare due altre pagine una per write e una per calendar\")", () => {
     const write = renderToStaticMarkup(createElement(WriteStep, { titleId: "t" }));
-    expect(write).toContain("Write: pick a take, make it yours");
+    expect(write).toContain("Compose: pick a take, make it yours");
     expect(write).toContain(">Picked</p>");
     const calendar = renderToStaticMarkup(createElement(CalendarStep, { titleId: "t" }));
     expect(calendar).toContain("Calendar: your posts by date");
@@ -48,7 +48,7 @@ describe("the welcome, redone (2026-09-27: \"l'onboarding a te sembra chiaro? mm
   it("says what PostEcho does, and draws the loop", () => {
     const html = renderToStaticMarkup(createElement(IntroStep, { titleId: "t" }));
     expect(html).toContain("Turn what you read into your next post");
-    for (const part of ["Create posts", "Write", "Calendar", "Your posts by date"]) expect(html).toContain(part);
+    for (const part of ["Find Ideas", "Compose", "Calendar", "Your posts by date"]) expect(html).toContain(part);
   });
 
   it("Connect: Claude and Jev in plain words, the optional sources folded away", () => {

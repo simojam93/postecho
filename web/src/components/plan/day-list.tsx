@@ -70,7 +70,7 @@ export function DayList({ day, isToday, rows, now, busy, errors, onAction, onEdi
                 <Link
                   href={scheduleHref(row)}
                   aria-label={`Schedule a ${PLATFORM_LABEL[row.platform]} post at ${row.time}`}
-                  data-tip="Schedule a post from Write here"
+                  data-tip="Schedule a post from Compose here"
                   className="rounded-full border border-border px-3 py-1 text-sm leading-none hover:text-text"
                 >
                   +
