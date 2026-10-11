@@ -995,6 +995,37 @@ describe("handleRepoPosts (posts from a repo, 2026-10-10)", () => {
     expect(arOut.posts[0]).toEqual({ ...article, slop: { platform: "linkedin", slopScore: 60, verdict: "slop" } });
   });
 
+  it("humanizes the posts Jev didn't call human before returning them, keeping a rewrite only when it scores better (2026-10-11)", async () => {
+    const scores: Record<string, number> = { one: 60, two: 20, three: 70, "one, human": 25, "three, worse": 80 };
+    const checkSlop = vi.fn(async (text: string) => ({ slopScore: scores[text] ?? 90, verdict: (scores[text] ?? 90) < 30 ? "human" : "slop" }));
+    const { deps, progress } = repoDeps(null);
+    const calls: string[] = [];
+    deps.runClaudeJson = (async (o: { prompt: string; cwd?: string; parse: (v: unknown) => unknown }) => {
+      if (o.cwd) return o.parse({ posts: [{ text: "one" }, { text: "two" }, { text: "three" }] });
+      calls.push(o.prompt);
+      const rewrite = o.prompt.includes("<<<\none\n>>>") ? "one, human" : "three, worse";
+      return o.parse({ rewrite });
+    }) as HandlerDeps["runClaudeJson"];
+    const out = await handleRepoPosts({ ideaId: "i1", source: folder, brief: "", format: "x", count: 3 }, { ...deps, checkSlop });
+    expect(out.posts).toEqual([
+      { text: "one, human", slop: { platform: "x", slopScore: 25, verdict: "human" } },
+      { text: "two", slop: { platform: "x", slopScore: 20, verdict: "human" } },
+      { text: "three", slop: { platform: "x", slopScore: 70, verdict: "slop" } },
+    ]);
+    // "two" was already human: only "one" (1 round) and "three" (3 rounds) were rewritten.
+    expect(calls).toHaveLength(4);
+    expect(progress.map((p) => p.phase)).toEqual(["reading", "writing", "humanizing"]);
+  });
+
+  it("doesn't humanize articles, nor anything without Jev", async () => {
+    const article = { title: "How it works", text: "b".repeat(3000) };
+    const checkSlop = vi.fn(async () => ({ slopScore: 60, verdict: "slop" }));
+    const ar = repoDeps({ posts: [article] });
+    await handleRepoPosts({ ideaId: "i1", source: folder, brief: "", format: "article", count: 1 }, { ...ar.deps, checkSlop });
+    expect(ar.claude.calls).toHaveLength(1);
+    expect(ar.progress.map((p) => p.phase)).not.toContain("humanizing");
+  });
+
   it("a text longer than Jev takes, or a check that fails, leaves that post unscored; without Jev nothing is checked", async () => {
     const checkSlop = vi.fn(async (text: string) => {
       if (text === "boom") throw new Error("jev down");

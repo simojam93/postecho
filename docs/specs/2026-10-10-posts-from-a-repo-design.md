@@ -113,3 +113,10 @@ This is the first of three pieces. The next two get their own designs:
 - Web: tests for the new routes (create, re-run, use, dismiss), materialization into `repo_post` ideas,
   the article fields in drafts, the kind check against the heartbeat, and the renamed nav.
 - One live run on this repository and on a public GitHub repository before calling it done.
+
+## Already human (2026-10-11)
+
+Owner: "i 6 post siano già humans prima di farmeli vedere". After Jev scores the posts, the agent runs
+Humanize's loop (Claude rewrites, Jev checks, up to 3 rounds) on each X or LinkedIn post Jev didn't
+call human, three at a time, and keeps a rewrite only when Jev scores it lower. The page shows
+"Rewriting the ones Jev called AI" meanwhile. Articles keep their score and Compose's Humanize.

@@ -38,4 +38,12 @@ describe("repoPostSteps (posts from a repo, 2026-10-10: getting the repository, 
     ]);
     expect(repoPostSteps({ status: "done", payload: github })).toEqual([]);
   });
+
+  it("then rewrites the posts Jev called AI (2026-10-11)", () => {
+    expect(at(folder, "humanizing")).toEqual([
+      { label: "Your Mac picked it up", done: true },
+      { label: "Read the repository and wrote 3 X posts", done: true },
+      { label: "Rewriting the ones Jev called AI", done: false },
+    ]);
+  });
 });

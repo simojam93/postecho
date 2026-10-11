@@ -2,7 +2,7 @@ import type { WorkStep } from "@/components/work-progress";
 import type { JobInfo } from "@/components/write/types";
 
 /** Claude Code exploring a repository and writing from it: longer than a video's posts. */
-export const REPO_POSTS_TYPICAL = "usually 2–5 min";
+export const REPO_POSTS_TYPICAL = "usually 3–6 min";
 
 export type RepoFormat = "x" | "linkedin" | "article";
 
@@ -22,7 +22,8 @@ export function postsLabel(format: RepoFormat, count: number): string {
  * A repo_posts job, step by step (spec 2026-10-10: "getting the repository, reading it,
  * writing"): waiting for the Mac, getting a GitHub repository (a folder is read where it is),
  * then Claude Code reading it and writing, which is one call that says nothing until it ends
- * (agent/src/handlers.ts's handleRepoPosts), so one step.
+ * (agent/src/handlers.ts's handleRepoPosts), so one step. Then, when Jev called some of them AI,
+ * the agent rewrites those before they're shown (2026-10-11).
  */
 export function repoPostSteps(job: Pick<JobInfo, "status" | "payload"> & { result?: JobInfo["result"] }): WorkStep[] {
   if (job.status === "queued") return [{ label: "Waiting for your Mac", done: false }];
@@ -40,6 +41,10 @@ export function repoPostSteps(job: Pick<JobInfo, "status" | "payload"> & { resul
   } else if (phase === "reading" || phase === "writing") {
     if (github) steps.push({ label: "Got the repository from GitHub", done: true });
     steps.push({ label: `Reading the repository and writing ${postsLabel(format, count)}`, done: false });
+  } else if (phase === "humanizing") {
+    if (github) steps.push({ label: "Got the repository from GitHub", done: true });
+    steps.push({ label: `Read the repository and wrote ${postsLabel(format, count)}`, done: true });
+    steps.push({ label: "Rewriting the ones Jev called AI", done: false });
   } else {
     steps.push({ label: "Reading the repository", done: false });
   }

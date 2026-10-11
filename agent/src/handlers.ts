@@ -708,7 +708,7 @@ async function releaseRepo(source: RepoSource, keepClone: boolean | null | undef
   }
 }
 
-async function reportRepoPosts(deps: HandlerDeps, phase: "fetching" | "reading" | "writing"): Promise<void> {
+async function reportRepoPosts(deps: HandlerDeps, phase: "fetching" | "reading" | "writing" | "humanizing"): Promise<void> {
   if (!deps.reportProgress) return;
   try { await deps.reportProgress({ kind: "repo_posts", phase }); } catch { /* a courtesy to the page */ }
 }
@@ -742,7 +742,8 @@ export async function handleRepoPosts(
       readOnlyTools: true,
     });
     const clean = hashtagsAllowed(profile) ? posts : posts.map((post) => ({ ...post, text: stripHashtagLines(post.text) }));
-    return { posts: await scoreRepoPosts(clean.slice(0, p.count), p.format, deps), repoName: repo.name };
+    const scored = await scoreRepoPosts(clean.slice(0, p.count), p.format, deps);
+    return { posts: await humanizeRepoPosts(scored, p.format, systemPrompt(profile), deps), repoName: repo.name };
   } finally {
     await releaseRepo(p.source, p.keepClone, deps);
   }
@@ -761,7 +762,7 @@ async function scoreRepoPosts(
   posts: RepoPost[],
   format: "x" | "linkedin" | "article",
   deps: HandlerDeps,
-): Promise<Array<RepoPost & { slop?: { platform: "x" | "linkedin"; slopScore: number; verdict: string } }>> {
+): Promise<ScoredRepoPost[]> {
   const checkSlop = deps.checkSlop;
   if (!checkSlop) return posts;
   const platform: "x" | "linkedin" = format === "x" ? "x" : "linkedin";
@@ -774,6 +775,54 @@ async function scoreRepoPosts(
       return post;
     }
   }));
+}
+
+/** How many posts from a repo are humanized at once: each is its own `claude -p`. */
+const HUMANIZE_REPO_POSTS_AT_ONCE = 3;
+
+type ScoredRepoPost = RepoPost & { slop?: { platform: "x" | "linkedin"; slopScore: number; verdict: string } };
+
+/**
+ * The posts Jev didn't call human go through Humanize's loop before the owner sees them (owner,
+ * 2026-10-11: "i 6 post siano già humans prima di farmeli vedere"). A rewrite replaces a post only
+ * when Jev scores it lower than the original; a rewrite that fails keeps the original. X and
+ * LinkedIn posts only: an article is long and has its own shape, so it keeps its score and Compose's
+ * Humanize. Three at a time, each without its own progress: the page says "Making them sound human".
+ */
+async function humanizeRepoPosts(
+  posts: ScoredRepoPost[],
+  format: "x" | "linkedin" | "article",
+  system: string,
+  deps: HandlerDeps,
+): Promise<ScoredRepoPost[]> {
+  if (format === "article" || !deps.checkSlop) return posts;
+  const todo = posts.filter((post) => post.slop && post.slop.verdict !== "human");
+  if (todo.length === 0) return posts;
+  await reportRepoPosts(deps, "humanizing");
+  const platform = format;
+  const quiet: HandlerDeps = { ...deps, reportProgress: undefined };
+  const out = [...posts];
+  let next = 0;
+  async function lane(): Promise<void> {
+    while (next < out.length) {
+      const i = next++;
+      const post = out[i]!;
+      if (!post.slop || post.slop.verdict === "human") continue;
+      try {
+        const best = await humanizeLoop({
+          original: post.text, platform, platformLabel: platform === "x" ? "X" : "LinkedIn",
+          system, maxChars: humanizeMaxChars(post.text, platform),
+        }, quiet);
+        if (best.slop && best.slop.slopScore < post.slop.slopScore) {
+          out[i] = { ...post, text: best.text, slop: { platform, slopScore: best.slop.slopScore, verdict: best.slop.verdict } };
+        }
+      } catch {
+        // The original stays, with its score: Compose's Humanize can try again.
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(HUMANIZE_REPO_POSTS_AT_ONCE, todo.length) }, lane));
+  return out;
 }
 
 /** pick_folder: the OS folder picker on this computer -> { path } or { cancelled: true }. */
