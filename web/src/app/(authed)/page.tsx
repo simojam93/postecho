@@ -331,15 +331,25 @@ export default function FindIdeasPage() {
     }
   }
 
-  /** × on a repo chip: the source leaves the tab, unpinned, with its posts still to review; Liked ones stay. */
+  /**
+   * × on a repo chip: the source leaves the tab with its posts still to review; Liked ones stay. A pinned
+   * one stays pinned, in the folder chip's menu (owner, 2026-10-11: "se cancello la ricerca legata ad una
+   * repo che era nei preferiti quella repo mi resta nei preferiti").
+   */
   async function removeRepo(repo: Idea) {
     await Promise.all([
-      repo.meta.favorite ? updateRepo(repo, { status: "dismissed", favorite: false }) : setStatus(repo.id, "dismissed"),
+      setStatus(repo.id, "dismissed"),
       ...postsOfRepo(repo.id).map((i) => setStatus(i.id, "archived")),
     ]);
   }
 
-  /** ☆ on a repo chip, and × on a pinned one: meta.favorite through PATCH /api/ideas/:id; pinned sources come first. */
+  /** A source picked from the folder chip's menu: a pinned one closed with × comes back as a chip, selected. */
+  async function pickRepo(repo: Idea) {
+    if (repo.status !== "new") await setStatus(repo.id, "new");
+    setSelectedRepoId(repo.id);
+  }
+
+  /** ☆ on a repo chip, and on the source chosen in the form: meta.favorite through PATCH /api/ideas/:id; pinned sources come first. */
   async function updateRepo(repo: Idea, change: { status?: IdeaStatus; favorite: boolean }) {
     setIdeas((current) => current.map((i) => (i.id === repo.id
       ? { ...i, status: change.status ?? i.status, meta: { ...i.meta, favorite: change.favorite } }
@@ -436,6 +446,8 @@ export default function FindIdeasPage() {
   // From a repo, the same way: a chip per source, the latest used selected. Its posts add up over
   // several asks, so the latest ask comes first, each in Claude's order.
   const repos = sortRepos(ideas.filter(isRepo));
+  // The folder chip's menu: the chips' sources, and the pinned ones whose chip was closed with ×.
+  const menuRepos = sortRepos(ideas.filter((i) => isRepo(i) || (i.kind === "repo" && i.meta.favorite === true)));
   const postsOfRepo = (repoId: string) => ideas
     .filter((i) => i.kind === "repo_post" && i.status === "new" && i.meta.repoId === repoId)
     .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt) || (a.meta.order ?? 0) - (b.meta.order ?? 0));
@@ -501,7 +513,7 @@ export default function FindIdeasPage() {
         {/* Liked has no input of its own: it's fed by ♥ and Use on the other two shelves. */}
         {mode === "trends" && <SearchBox onSearched={onSearchActivity} onBusyChange={setSearchBusy} />}
         {mode === "repo" && <RepoForm onCreated={onRepoCreated} repo={selectedRepo} onClear={() => setSelectedRepoId(null)}
-          repos={repos} onPick={(repo) => setSelectedRepoId(repo.id)} onFavorite={(repo) => void updateRepo(repo, { favorite: !repo.meta.favorite })} />}
+          repos={menuRepos} onPick={(repo) => void pickRepo(repo)} onFavorite={(repo) => void updateRepo(repo, { favorite: !repo.meta.favorite })} />}
         {mode === "repo" && (
           <RepoChips repos={repos} counts={repoCounts} selectedId={activeRepo?.id ?? null} onSelect={setSelectedRepoId}
             onAgain={(repo) => void repoAgain(repo)} onRemove={(repo) => void removeRepo(repo)}
