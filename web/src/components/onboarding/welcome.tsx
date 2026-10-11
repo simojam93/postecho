@@ -248,7 +248,7 @@ export function SearchStep({ titleId, value, onChange, onSubmit, inputRef }: {
         ))}
       </ul>
       <label className="block space-y-1.5">
-        <span className="block text-sm text-text-dim">What do you post about? Trends starts searching it now.</span>
+        <span className="block text-sm text-text-dim">What do you post about? Next starts a Trends search for it.</span>
       <input
         ref={inputRef}
         value={value}
