@@ -6,7 +6,7 @@ import { SHOW_WELCOME_EVENT } from "./welcome";
 
 /**
  * First-time things (owner, 2026-09-27: "un'animazione di highlight la prima
- * volta"): Find Ideas' + More sources glows until it's first touched, and
+ * volta"): Sources' + More sources glows until it's first touched, and
  * Settings opens on Start here once. Write's and Calendar's own pills went
  * the same night ("non aggiunge nulla"): the app's tooltips say what each
  * control does. The layout hands in what's already been seen (kv seenHints);
@@ -68,7 +68,7 @@ function useFirstTime(id: HintId) {
   return { freshAtMount, glowing: freshAtMount && !touched, touch };
 }
 
-/** A pill that glows the first time, until it's hovered or focused (Find Ideas' + More sources). */
+/** A pill that glows the first time, until it's hovered or focused (Sources' + More sources). */
 export function GlowOnce({ id, children }: { id: HintId; children?: ReactNode }) {
   const { glowing, touch } = useFirstTime(id);
   return (

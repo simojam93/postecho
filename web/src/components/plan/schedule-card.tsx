@@ -71,7 +71,7 @@ function ThumbIcon({ down = false }: { down?: boolean }) {
 /**
  * "How did it do?" on a post that is out (owner, 2026-09-26: "il tocco in plan serve sia se
  * il post è andato bene che se è andato male"): Did well or Didn't land, as toggles — the
- * pressed one again takes the vote back. Find Ideas learns from the votes (lib/taste.ts).
+ * pressed one again takes the vote back. Sources learns from the votes (lib/taste.ts).
  */
 export function RateRow({ outcome, disabled = false, onRate }: {
   outcome: PlanOutcome | null;

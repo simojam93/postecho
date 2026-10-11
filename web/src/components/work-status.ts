@@ -1,5 +1,5 @@
 /**
- * Whether Find Ideas or Write is working, for the sidebar (owner, 2026-09-27:
+ * Whether Sources or Write is working, for the sidebar (owner, 2026-09-27:
  * "se stanno lavorando voglio che ci sia un charging che poi diventa un tick
  * verde quando ha finito, così se sono su un'altra tab posso controllare…
  * cose più lunghe di qualche secondo", and "la spunta verde resta un secondo e
@@ -19,7 +19,7 @@ export type WorkTab = "find" | "write";
 export type WorkMark = "running" | "done" | "failed";
 export type WorkSnapshot = Readonly<Record<WorkTab, WorkMark | null>>;
 
-/** Which tab a job's work shows on: a video's or a repo's posts in Find Ideas; a post's takes, edits and Humanize in Compose. */
+/** Which tab a job's work shows on: a video's or a repo's posts in Sources; a post's takes, edits and Humanize in Compose. */
 export const TAB_OF_KIND: Readonly<Record<string, WorkTab>> = {
   video_ideas: "find",
   repo_posts: "find",

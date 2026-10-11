@@ -19,7 +19,7 @@ function likelyExceedsClamp(content: string): boolean {
 
 /**
  * The idea the post is written from (M2.5 plan, task W3), rendered like a
- * Find Ideas card minus its actions: source pill + author, title, content
+ * Sources card minus its actions: source pill + author, title, content
  * clamped to five lines with a "more" toggle, the search query it came from
  * and an "open ↗" link. A video (kind youtube) has no content, so it comes
  * out as the plan asks — title + link. The header's right side carries a

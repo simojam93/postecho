@@ -58,7 +58,7 @@ export function scoutResultMessage(query: string, scout: ScoutSummary): Message 
 }
 
 /**
- * The Trends half of search-first Find Ideas: a pasted seed (X post link,
+ * The Trends half of search-first Sources: a pasted seed (X post link,
  * article link, or a raw idea) becomes a saved card, and the scout runs
  * inline against every enabled discovery source (sources/all.ts's
  * ALL_ADAPTERS — Hacker News, Bluesky, arXiv, GitHub, dev.to, Mastodon,
@@ -73,7 +73,7 @@ export function scoutResultMessage(query: string, scout: ScoutSummary): Message 
  */
 export function SearchBox({ onSearched, onBusyChange }: {
   onSearched: () => void;
-  /** Told when a search starts and ends: Find Ideas shows placeholder cards meanwhile. */
+  /** Told when a search starts and ends: Sources shows placeholder cards meanwhile. */
   onBusyChange?: (busy: boolean) => void;
 }) {
   const [value, setValue] = useState("");

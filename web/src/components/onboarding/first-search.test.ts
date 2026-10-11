@@ -16,8 +16,8 @@ const perSource = {
 };
 const answer = (status: number, body: unknown) => vi.fn(async () => new Response(JSON.stringify(body), { status })) as unknown as typeof fetch;
 
-describe("the welcome's first search, followed in Find Ideas (2026-09-27)", () => {
-  it("searching, then what it found and the sources it had no key for; Find Ideas reloads", async () => {
+describe("the welcome's first search, followed in Sources (2026-09-27)", () => {
+  it("searching, then what it found and the sources it had no key for; Sources reloads", async () => {
     const seen: string[] = [];
     window.addEventListener(FIRST_SEARCH_EVENT, () => seen.push(getFirstSearch()?.status ?? "none"));
     const reloads = vi.fn();
@@ -44,7 +44,7 @@ describe("the welcome's first search, followed in Find Ideas (2026-09-27)", () =
   });
 });
 
-describe("Find Ideas' line about it (2026-09-27: \"il suggerimento mi toglie il show more\")", () => {
+describe("Sources' line about it (2026-09-27: \"il suggerimento mi toglie il show more\")", () => {
   const render = (search: FirstSearch) => renderToStaticMarkup(createElement(FirstSearchNotice, { search }));
 
   it("while it runs: the moving bar and its steps so far", () => {

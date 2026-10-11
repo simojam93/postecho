@@ -18,7 +18,7 @@ const VISIBLE_CHIPS = 3;
  * latest VISIBLE_CHIPS chips, the rest behind **Show more (N)** / **Show
  * less**. One chip is always selected, the latest search unless the owner
  * picks another (2026-09-27: "rimane selezionata sempre l'ultima ricerca"),
- * and the Find Ideas grid shows its topic (idea.meta.topic); ↻ re-runs its
+ * and the Sources grid shows its topic (idea.meta.topic); ↻ re-runs its
  * search, × removes it. The row used to open with "Search my
  * topics" / "Clear all" pills and an "All" chip; the owner had them removed
  * the same day ("questi toglili pure, secondo me non servono. tanto lo
@@ -108,7 +108,7 @@ export function SearchesStrip({
   // own closure doesn't route through a function tagged as "sets state" by
   // react-hooks/set-state-in-effect — same pattern as (authed)/page.tsx's
   // mount effect. `cancelled` guards against setting state after this
-  // effect's own unmount (e.g. a fast tab switch away from Find Ideas).
+  // effect's own unmount (e.g. a fast tab switch away from Sources).
   useEffect(() => {
     let cancelled = false;
     fetch("/api/searches").then(async (res) => {

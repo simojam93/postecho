@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_FIND_ORDER, FIND_KINDS, jevKinds, moveKind, normalizeOrder, weightAt } from "@/lib/find-kinds";
 import { SETTING_DEFAULTS } from "@/lib/settings";
 
-describe("the kinds Find Ideas tells apart (2026-09-26)", () => {
+describe("the kinds Sources tells apart (2026-09-26)", () => {
   it("defaults to the owner's order: stories, opinions, problems, news, tools", () => {
     expect(DEFAULT_FIND_ORDER).toEqual(["story", "opinion", "problem", "news", "tool"]);
     expect(SETTING_DEFAULTS.findOrder).toEqual(DEFAULT_FIND_ORDER);

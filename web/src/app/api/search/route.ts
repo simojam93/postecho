@@ -24,7 +24,7 @@ const LOOKS_LIKE_URL = /^https?:\/\//i;
 type Outcome = { status: number; body: Record<string, unknown> };
 
 /**
- * Search-first Find Ideas: a pasted seed (X post link, article link, raw
+ * Search-first Sources: a pasted seed (X post link, article link, raw
  * idea, or — in Videos mode — a YouTube link) becomes a saved idea card AND
  * runs the scout inline, in the same request (M1.5 final design — free open
  * sources, Jev-judged, no job queue; see
@@ -80,7 +80,7 @@ async function search(input: string, mode: "trends" | "videos" | undefined, onSt
 }
 
 /**
- * POST /api/search. Asked with `Accept: application/x-ndjson` (Find Ideas'
+ * POST /api/search. Asked with `Accept: application/x-ndjson` (Sources'
  * search, lib/search-steps.ts's postSearch), it streams each step as it
  * happens, one JSON line `{ step }` each, and ends with `{ done: { status,
  * body } }`, the answer it would otherwise give (owner, 2026-09-27: "lo

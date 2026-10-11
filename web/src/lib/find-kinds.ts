@@ -1,7 +1,7 @@
 import type { PostKind } from "jev-judge";
 
 /**
- * The kinds of post Find Ideas tells apart (owner, 2026-09-26: the ones that do well are a
+ * The kinds of post Sources tells apart (owner, 2026-09-26: the ones that do well are a
  * real story with numbers and a strong opinion — "quello su pricing per seat che ho messo su
  * linkedin è esploso" — then practical problems). The owner orders them in Settings ("vuoi
  * rendere ordinabili l'importanza di queste… così sono prioritizzate?"); position is
@@ -44,7 +44,7 @@ const OTHER_KIND: PostKind = {
 };
 
 /**
- * Find Ideas' relevance gate (jev-judge's options.relevanceGate), lenient on purpose: Jev
+ * Sources' relevance gate (jev-judge's options.relevanceGate), lenient on purpose: Jev
  * measures relevance against the search's own words, not the owner's whole area ("se parlo di
  * agenti starò anche parlando di AI"). Relevance is an expected value over Jev's five levels
  * (0, 25, 50, 75, 100): off topic (under 10) sinks, "tangentially related" (25) keeps 60% of

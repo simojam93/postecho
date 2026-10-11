@@ -38,7 +38,7 @@ const Body = z.object({
   xPostsPerSearch: z.number().int().min(X_POSTS_PER_SEARCH.min).max(X_POSTS_PER_SEARCH.max).optional(),
   // The sources the owner disconnected (adapter names), the whole list.
   disabledSources: z.array(z.string().regex(/^[a-z_]{2,30}$/)).max(30).optional(),
-  // What Find Ideas shows first (2026-09-26): all five kinds, each once, most wanted first.
+  // What Sources shows first (2026-09-26): all five kinds, each once, most wanted first.
   findOrder: z.array(z.enum(FIND_KIND_IDS as [FindKindId, ...FindKindId[]])).length(FIND_KIND_IDS.length)
     .refine((order) => new Set(order).size === order.length, { message: "each kind once" }).optional(),
   // The Claude model the Mac agent writes with (2026-09-26, Settings › AI tools).

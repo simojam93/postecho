@@ -2,7 +2,7 @@ import { ADAPTER_TIMEOUT_MS, clampText, disabledResult, envReady, errorResult, t
 import type { Fetcher, SourcePost } from "./types";
 
 /**
- * X as a Find Ideas source (owner, 2026-09-24: "metti in settings la
+ * X as a Sources source (owner, 2026-09-24: "metti in settings la
  * possibilità di aggiungere X o no, come api key"). Off until the owner
  * pastes their own X API bearer token in Settings (lib/x-config.ts puts it
  * in the scout's env as X_BEARER_TOKEN); read only through the official API

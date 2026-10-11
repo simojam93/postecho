@@ -15,18 +15,21 @@ import { getFirstSearch, runFirstSearch, subscribeFirstSearch } from "./first-se
  * molto", on this plan: say what PostEcho does, connect only what it needs,
  * end on the first results). Three steps in a window over the app:
  *
- * 1. What PostEcho does, in a sentence and the Find → Write → Plan loop.
+ * 1. What PostEcho does, in a sentence and the Sources → Compose → Schedule loop.
  * 2. Connect: Claude on the Mac and Jev, in plain words, each with its
  *    step-by-step window; the optional sources folded away. Skipped when both
  *    are connected.
- * 3. The first search: "YC interesting posts" already written. Find ideas
- *    saves it and starts the search, which runs on while the owner reads:
+ * 3. Sources (2026-10-11: "l'onboarding va adattato aggiungendo le cose
+ *    nuove e poi deve landare su repo"): From a repo, Trends and Video posts,
+ *    then the first search for Trends, "YC interesting posts" already
+ *    written. Next saves it and starts the search, which runs on while the
+ *    owner reads:
  * 4. Write and 5. Calendar, a page each (2026-09-27: "un onboarding non debba
  *    chiudersi su find ideas ma mostrare due altre pagine una per write e una
  *    per calendar e poi finito quello si vede la prima search").
- * "See your ideas" closes it on Find Ideas, whose banner follows the search
- * (first-search.ts): what it found, how to go on, and which sources would
- * find more.
+ * "Start from a repo" closes it on Sources, open on From a repo; Trends'
+ * banner follows the search (first-search.ts): what it found, how to go on,
+ * and which sources would find more.
  *
  * Finishing or closing it records `onboardedAt` (POST /api/setup); Settings ›
  * Profile opens it again.
@@ -72,18 +75,25 @@ const SOURCE_GUIDES: Array<KeyGuide["id"]> = ["bluesky", "youtube", "producthunt
 
 /** The loop, as the first step draws it. */
 const LOOP: Array<[tab: string, what: string]> = [
-  ["Find Ideas", "From your code or the news"],
-  ["Compose", "Takes in your voice"],
+  ["Sources", "From your code or the news"],
+  ["Compose", "Posts in your voice, checked by Jev"],
   ["Schedule", "Your posts by date"],
 ];
 
-/** Step 4: what Write does, with a small picture of it. */
+/** Where posts come from, as the Sources step lists them: From a repo first, as the page opens on it. */
+const SOURCES: Array<[tab: string, what: string]> = [
+  ["From a repo", "Pick a folder of your code or paste a GitHub link: six X posts, or two X articles, about what you built."],
+  ["Trends", "A search across the sources you connect, for posts worth reacting to."],
+  ["Video posts", "Paste a YouTube link: the best X posts in it, ready as they are."],
+];
+
+/** Step 4: what Compose does, with a small picture of it. */
 export function WriteStep({ titleId }: { titleId: string }) {
   return (
     <div className="space-y-5">
       <div className="space-y-1">
-        <h2 id={titleId} className="text-lg font-semibold">Compose: pick a take, make it yours</h2>
-        <p className="text-sm text-text-dim">Press Use on an idea and PostEcho writes three takes in your voice. Pick one, change it by chatting with AI, then Schedule it on X or LinkedIn.</p>
+        <h2 id={titleId} className="text-lg font-semibold">Compose: make it yours</h2>
+        <p className="text-sm text-text-dim">Press Use on a post and it opens here, in your voice, with how human Jev finds it from 1 to 10. Change it by chatting with AI and give it media: a card, the source&apos;s image, or screenshots and a video of your own app. Then Add to queue.</p>
       </div>
       <div aria-hidden className="flex items-center gap-2">
         {[false, true, false].map((picked, i) => (
@@ -134,8 +144,8 @@ export function IntroStep({ titleId }: { titleId: string }) {
   return (
     <div className="space-y-5">
       <div className="space-y-1">
-        <h2 id={titleId} className="text-lg font-semibold">Turn what you read into your next post</h2>
-        <p className="text-sm text-text-dim">PostEcho finds posts worth reacting to and writes takes in your voice. You schedule the best on X or LinkedIn.</p>
+        <h2 id={titleId} className="text-lg font-semibold">Turn what you build and read into your next post</h2>
+        <p className="text-sm text-text-dim">PostEcho writes posts in your voice from your code, a search or a video. You schedule them on X and LinkedIn.</p>
       </div>
       <ol className="grid grid-cols-3 gap-2">
         {LOOP.map(([tab, what], i) => (
@@ -215,21 +225,30 @@ export function ConnectStep({ titleId, status, connections, onOpen }: {
   );
 }
 
-/** Step 3: the first search, already written. */
+/** Step 3: where posts come from, From a repo first; then the first search for Trends, already written. */
 export function SearchStep({ titleId, value, onChange, onSubmit, inputRef }: {
   titleId: string;
   value: string;
   onChange: (value: string) => void;
-  /** Enter in the field: the same as Find ideas. */
+  /** Enter in the field: the same as Next. */
   onSubmit: () => void;
   inputRef?: React.RefObject<HTMLInputElement | null>;
 }) {
   return (
     <div className="space-y-4">
       <div className="space-y-1">
-        <h2 id={titleId} className="text-lg font-semibold">Your first search</h2>
-        <p className="text-sm text-text-dim">What do you post about? PostEcho looks across every connected source and brings back the posts worth reacting to.</p>
+        <h2 id={titleId} className="text-lg font-semibold">Sources: where posts come from</h2>
       </div>
+      <ul className="divide-y divide-border rounded-xl border border-border bg-surface-2">
+        {SOURCES.map(([tab, what]) => (
+          <li key={tab} className="px-4 py-2.5">
+            <span className="block text-sm">{tab}</span>
+            <span className="block text-xs text-text-dim">{what}</span>
+          </li>
+        ))}
+      </ul>
+      <label className="block space-y-1.5">
+        <span className="block text-sm text-text-dim">What do you post about? Trends starts searching it now.</span>
       <input
         ref={inputRef}
         value={value}
@@ -240,6 +259,7 @@ export function SearchStep({ titleId, value, onChange, onSubmit, inputRef }: {
         aria-label="What you post about"
         className={inputCls}
       />
+      </label>
     </div>
   );
 }
@@ -290,14 +310,14 @@ function Welcome({ onClose }: { onClose: () => void }) {
     return () => { cancelled = true; };
   }, [refreshKey]);
 
-  /** Closed, skipped or done: recorded; once the search has started, the owner lands where it shows up. */
+  /** Closed, skipped or done: recorded; the owner lands on Sources, which opens on From a repo (2026-10-11: "deve landare su repo"). */
   function finish() {
     onClose();
     void fetch("/api/setup", { method: "POST" }).catch((e) => console.error("welcome: couldn't record it as done:", e));
-    if (searchStarted && pathname !== "/") router.push("/");
+    if (pathname !== "/") router.push("/");
   }
 
-  /** Find ideas: save the topic, start its search, and read on while it runs. */
+  /** Next on the Sources step: save the topic, start its search for Trends, and read on while it runs. */
   async function findIdeas() {
     const chosen = topicOf(topic ?? "");
     if (!chosen || saving) return;
@@ -344,18 +364,18 @@ function Welcome({ onClose }: { onClose: () => void }) {
           <div className="flex items-center justify-end gap-2 border-t border-border pt-4">
             {searchStarted && firstSearch && (
               <p role="status" aria-live="polite" className="mr-auto text-xs text-text-dim">
-                {firstSearch.status === "searching" ? "Finding your ideas meanwhile…"
-                  : firstSearch.status === "done" && firstSearch.found > 0 ? `${firstSearch.found} ideas ready`
+                {firstSearch.status === "searching" ? "Searching Trends meanwhile…"
+                  : firstSearch.status === "done" && firstSearch.found > 0 ? `${firstSearch.found} posts ready in Trends`
                     : "Your search is done"}
               </p>
             )}
             {canGoBack && <button type="button" onClick={() => setIndex(index - 1)} className={pillCls}>Back</button>}
             {step === "search" ? (
               <button type="button" onClick={() => void findIdeas()} disabled={saving || !topicOf(topic ?? "")} className={primaryPillCls}>
-                {saving ? "Saving…" : "Find ideas"}
+                {saving ? "Saving…" : "Next"}
               </button>
             ) : last ? (
-              <button type="button" onClick={finish} className={primaryPillCls}>See your ideas</button>
+              <button type="button" onClick={finish} className={primaryPillCls}>Start from a repo</button>
             ) : (
               <button type="button" onClick={() => setIndex(index + 1)} className={primaryPillCls}>Next</button>
             )}

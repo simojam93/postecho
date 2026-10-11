@@ -22,7 +22,7 @@ const Body = z.object({
 /**
  * POST /api/drafts/from-idea
  *
- * The "Use" action on a Find Ideas card: enqueues a `generate_from_idea` job
+ * The "Use" action on a Sources card: enqueues a `generate_from_idea` job
  * for the agent (mirrors POST /api/videos's `generate_from_video` job, but
  * seeded from an idea instead of a fresh YouTube url) and marks the idea
  * `used` so it drops out of the "new" queue. `seedText`/`seedUrl` are

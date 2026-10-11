@@ -11,7 +11,7 @@ const MAX_TEXT_CHARS = 2000;
 
 /**
  * The kind of the idea behind a post the owner just rated, when the idea was found before
- * Find Ideas told kinds apart (2026-09-26): asked of Jev once and stored as
+ * Sources told kinds apart (2026-09-26): asked of Jev once and stored as
  * meta.postKind/kindFit, so Settings can count the vote by kind. Best effort — no Jev key, no
  * idea, a YouTube idea, one that already has a kind, or a failed call leave it as it is.
  */

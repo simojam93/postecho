@@ -15,7 +15,7 @@ export type StripChip = {
  * most recently touched first, the one on screen highlighted, a pulsing dot
  * while Claude is writing takes for it, and a × that removes the post from
  * Write (owner direction, 2026-09-22: "devo poter cancellare i post qui
- * sopra") — same look as the recent-searches chips in Find Ideas
+ * sopra") — same look as the recent-searches chips in Sources
  * (components/searches-strip.tsx). Horizontal scroll on a phone (bleeding
  * into the layout's 16px gutters so the row reaches the edges). Purely
  * presentational, like the takes row: clicking a chip reports the idea id

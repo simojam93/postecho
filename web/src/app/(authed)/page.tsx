@@ -46,7 +46,7 @@ const MODES: { key: Mode; label: string; tip: string }[] = [
  * the youtube adapter's included (M3.5 U1, owner direction 2026-09-23: "YT
  * come source lo voglio comunque vedere nella pagina trends"; they show the
  * "YT" pill and a YouTube entry in the filter row). Notes (kind "note" — the
- * owner's own raw seed text) never appear anywhere in Find Ideas ("togli
+ * owner's own raw seed text) never appear anywhere in Sources ("togli
  * anche le note dalla pagina find ideas"), and neither do the manually
  * pasted x_post/article seeds: a seed is what was searched for, not a
  * result — only scouted rows (source "scout", see lib/scout-run.ts) are
@@ -113,7 +113,8 @@ function byRecency(a: Idea, b: Idea): number {
 
 export default function FindIdeasPage() {
   const router = useRouter();
-  const [mode, setMode] = useState<Mode>("trends");
+  // From a repo first (owner, 2026-10-11: "repo diventa anche la landing page"), after the welcome too.
+  const [mode, setMode] = useState<Mode>("repo");
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [scoutMessage, setScoutMessage] = useState<ScoutMessage | null>(null);
@@ -213,7 +214,7 @@ export default function FindIdeasPage() {
   }, [searchesRefreshKey]);
 
   // The welcome's searches (2026-09-26) finish while the owner reads on: each
-  // one reloads the grid and the chips, so Find Ideas fills by itself.
+  // one reloads the grid and the chips, so Sources fills by itself.
   useEffect(() => {
     const reload = () => {
       void load();

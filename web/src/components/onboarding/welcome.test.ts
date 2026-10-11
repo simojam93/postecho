@@ -38,7 +38,9 @@ describe("the welcome, redone (2026-09-27: \"l'onboarding a te sembra chiaro? mm
 
   it("a page for Write and one for Calendar (2026-09-27: \"mostrare due altre pagine una per write e una per calendar\")", () => {
     const write = renderToStaticMarkup(createElement(WriteStep, { titleId: "t" }));
-    expect(write).toContain("Compose: pick a take, make it yours");
+    expect(write).toContain("Compose: make it yours");
+    // What came on 2026-10-11: Jev's 1 to 10, media, the queue.
+    for (const part of ["from 1 to 10", "screenshots and a video", "Add to queue"]) expect(write).toContain(part);
     expect(write).toContain(">Picked</p>");
     // Calendar is Schedule since 2026-10-10 (schedule in a row): ready posts line up there.
     const calendar = renderToStaticMarkup(createElement(ScheduleStep, { titleId: "t" }));
@@ -51,8 +53,8 @@ describe("the welcome, redone (2026-09-27: \"l'onboarding a te sembra chiaro? mm
 
   it("says what PostEcho does, and draws the loop", () => {
     const html = renderToStaticMarkup(createElement(IntroStep, { titleId: "t" }));
-    expect(html).toContain("Turn what you read into your next post");
-    for (const part of ["Find Ideas", "Compose", "Schedule", "Your posts by date"]) expect(html).toContain(part);
+    expect(html).toContain("Turn what you build and read into your next post");
+    for (const part of ["Sources", "Compose", "Schedule", "Your posts by date"]) expect(html).toContain(part);
     expect(html).not.toContain("Calendar");
   });
 
@@ -75,7 +77,10 @@ describe("the welcome, redone (2026-09-27: \"l'onboarding a te sembra chiaro? mm
 
   it("the first search is one field, already written", () => {
     const html = renderToStaticMarkup(createElement(SearchStep, { titleId: "t", value: "YC interesting posts", onChange: () => {}, onSubmit: () => {} }));
-    expect(html).toContain("Your first search");
+    expect(html).toContain("Sources: where posts come from");
+    // From a repo first, as Sources opens on it (2026-10-11).
+    expect(html.indexOf("From a repo")).toBeLessThan(html.indexOf("Trends"));
+    expect(html).toContain("Video posts");
     expect(html).toContain('value="YC interesting posts"');
     expect(html).not.toContain(">Add</button>");
   });

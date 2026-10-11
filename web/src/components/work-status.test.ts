@@ -5,7 +5,7 @@ beforeEach(() => { vi.useFakeTimers(); resetWork(); });
 afterEach(() => { resetWork(); vi.useRealTimers(); });
 
 describe("the sidebar's work marks (2026-09-27: \"un charging che poi diventa un tick verde… resta un secondo e poi scompare\")", () => {
-  it("a search: working on Find Ideas while it runs, then ✓ for a moment, then nothing", async () => {
+  it("a search: working on Sources while it runs, then ✓ for a moment, then nothing", async () => {
     let finish!: (value: { ok: boolean }) => void;
     const search = trackWork("find", new Promise<{ ok: boolean }>((resolve) => { finish = resolve; }), (r) => r.ok);
     expect(workSnapshot()).toEqual({ find: "running", write: null });

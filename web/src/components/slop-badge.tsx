@@ -16,7 +16,7 @@ const TONE_CLASS = { ok: "text-ok", dim: "text-text-dim", danger: "text-danger" 
  * chiaro e su base dieci"): how human the text reads, 0-10, higher is better,
  * the word following the number (lib/human-score.ts). Renders nothing when
  * there's no result yet. `compact`: the height of the ✦ pill beside it on a
- * Find Ideas card, so the badge never makes one card taller than the rest.
+ * Sources card, so the badge never makes one card taller than the rest.
  */
 export function SlopBadge({ slop, compact = false }: { slop: SlopResult | null; compact?: boolean }) {
   if (!slop) return null;

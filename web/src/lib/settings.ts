@@ -56,7 +56,7 @@ export const SETTING_DEFAULTS = {
   references: [] as ReferenceItem[],
   // When Analyze my posts last produced the style guide (materialize.ts).
   styleGuideAnalyzedAt: null as string | null,
-  // X as a Find Ideas source (2026-09-24), with the owner's own API key:
+  // X as a Sources source (2026-09-24), with the owner's own API key:
   // stored sealed (lib/secret-box.ts, "" = none), never sent to the browser —
   // see lib/x-config.ts and api/settings. The budget is how many posts one
   // search may read from X, which bills per post (lib/sources/x.ts).
@@ -66,7 +66,7 @@ export const SETTING_DEFAULTS = {
   // to disconnect those if you want"): searches skip them, whatever keys the
   // server or the owner has for them. Adapter names (lib/sources/all.ts).
   disabledSources: [] as string[],
-  // What Find Ideas shows first (owner, 2026-09-26: "vuoi rendere ordinabili l'importanza di
+  // What Sources shows first (owner, 2026-09-26: "vuoi rendere ordinabili l'importanza di
   // queste… così sono prioritizzate?"): the kinds of post of lib/find-kinds.ts, most wanted
   // first. Read through normalizeOrder, so a broken value still gives a valid order.
   findOrder: [...DEFAULT_FIND_ORDER] as string[],

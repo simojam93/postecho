@@ -13,7 +13,7 @@ export type XKeyStatus = { connected: boolean; hint: string | null };
  * possibilità di aggiungere X o no, come api key. se uno la aggiunge ovviamente
  * la trova poi nel find ideas"). The owner pastes their own X API bearer
  * token; it's saved at once, sealed, and never shown again — only its last
- * four characters. With a key, every Find Ideas search also reads up to
+ * four characters. With a key, every Sources search also reads up to
  * `postsPerSearch` posts from X (lib/sources/x.ts), which X bills to the
  * owner's developer account: the cost is spelled out next to the number.
  * The number itself saves with the page's Save settings, like the other

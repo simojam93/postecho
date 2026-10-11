@@ -3,7 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { IdeaCard, type Idea } from "./idea-card";
 
-describe("a Find Ideas card", () => {
+describe("a Sources card", () => {
   it("never says it fits your taste (2026-09-27: \"toglilo dappertutto, perché non mi voglio far condizionare\")", () => {
     const idea: Idea = {
       id: "i1", url: "https://x.com/a/status/1", kind: "x_post", title: null, author: "@a", status: "new", createdAt: "2026-09-27T10:00:00.000Z",

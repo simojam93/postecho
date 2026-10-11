@@ -10,7 +10,7 @@ import { sourceLabel } from "@/lib/sources/labels";
  * Settings' **Style inspiration** (owner, 2026-09-24: "se vedo post
  * interessanti in find ideas e voglio infilarmi nel mio tone of voice… può
  * aiutare a migliorare il mio stile in modo furbo" — "si mi gasa"): the
- * posts by other people added from a Find Ideas card's right-click menu. Analyze my
+ * posts by other people added from a Sources card's right-click menu. Analyze my
  * posts borrows their structure and rhythm for the style guide, never their
  * voice or content. Kept apart from the tone examples, which are the owner's
  * own posts. Says how many were added since the last analysis.

@@ -4,7 +4,7 @@
  * - **Style inspiration** — posts by other people whose style the owner likes
  *   ("se vedo post interessanti in find ideas e voglio infilarmi nel mio tone
  *   of voice… anche se sono scritti da altri può aiutare a migliorare il mio
- *   stile in modo furbo"), added from Find Ideas. Analyze my posts borrows
+ *   stile in modo furbo"), added from Sources. Analyze my posts borrows
  *   their structure and rhythm for the style guide, never their voice or
  *   content (agent/src/prompts.ts's styleGuidePrompt). Kept apart from the
  *   tone examples, which are the owner's own posts.

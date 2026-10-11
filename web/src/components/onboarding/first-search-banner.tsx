@@ -9,7 +9,7 @@ import { getFirstSearch, subscribeFirstSearch, type FirstSearch } from "./first-
 const pillCls = "shrink-0 rounded-full border border-border px-3 py-1 text-xs font-medium text-text hover:border-text-dim";
 
 /**
- * What Find Ideas says about the welcome's first search, taking no room once
+ * What Sources says about the welcome's first search, taking no room once
  * it's done (owner, 2026-09-27: "il suggerimento mi toglie il show more"):
  * the moving bar while it runs, then only what needs doing — Jev to rank the
  * posts it saved unranked, or nothing found. The sources that would find more are the "+ More sources"
@@ -31,7 +31,7 @@ export function FirstSearchNotice({ search }: { search: FirstSearch }) {
   return search.found === 0 ? <p role="status" className="text-sm text-text-dim">{search.message}</p> : null;
 }
 
-/** Find Ideas' line about the welcome's first search. */
+/** Sources' line about the welcome's first search. */
 export function FirstSearchBanner() {
   const search = useSyncExternalStore(subscribeFirstSearch, getFirstSearch, () => null);
   return search ? <FirstSearchNotice search={search} /> : null;

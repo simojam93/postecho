@@ -46,7 +46,7 @@ async function errorMessage(res: Response, fallback: string): Promise<string> {
  *
  * Data: GET /api/drafts?view=in-progress (strip), GET /api/ideas (the source
  * card and the chips' excerpts — there is no GET /api/ideas/:id yet, and
- * Find Ideas loads the same list), GET /api/settings (identity for the
+ * Sources loads the same list), GET /api/settings (identity for the
  * X-style take previews), and per post GET /api/jobs?ideaId= then
  * GET /api/drafts?ideaId= — polled every POLL_MS while a generation job is
  * queued/claimed (the takes row turns that job into the progress block).
@@ -394,7 +394,7 @@ function WriteContent() {
         {postsError && <p className="text-sm text-danger">{postsError}</p>}
         <div className="flex items-start gap-3">
           <p className="text-sm text-text-dim">
-            Nothing in progress: press Use on an idea in <Link href="/" className="underline hover:text-text">Find Ideas</Link>.
+            Nothing in progress: press Use on an idea in <Link href="/" className="underline hover:text-text">Sources</Link>.
           </p>
           <ArchiveButton refreshKey={postsKey} className="ml-auto" />
         </div>

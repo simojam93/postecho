@@ -28,7 +28,7 @@
 **Find.** Search sources including Hacker News, GitHub and arXiv. Some sources need credentials.
 Jev ranks results when enabled; search also works without it.
 
-![Find Ideas with fictional sample results](docs/media/find-ideas.png)
+![Sources with fictional sample results](docs/media/find-ideas.png)
 
 **Turn a video into posts.** Get twelve X drafts from a YouTube transcript. If unavailable, postecho
 can use the description and chapters, or you can paste a transcript. Check facts and add attribution before publishing.
@@ -78,7 +78,7 @@ npm run dev     # starts the web app and local agent
 Open the address `npm run dev` prints, http://localhost:3000 unless another program already uses that port, and log in with the password chosen or generated during setup.
 With sample data loaded, open Compose to inspect the example drafts. Generating new text requires Claude Code.
 
-For a first live task, add writing examples in Settings, search a topic in Find Ideas, and use a result
+For a first live task, add writing examples in Settings, search a topic in Sources, and use a result
 to generate three drafts. Choose one and edit it in Compose.
 
 Add optional service keys in Settings. For online hosting, see [the deploy guide](docs/deploy.md).

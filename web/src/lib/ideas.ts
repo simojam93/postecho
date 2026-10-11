@@ -20,7 +20,7 @@ export type SaveIdeaInput = {
 
 /**
  * Shared url/text idea-saving logic, used by both `POST /api/ideas` (the
- * original capture path) and `POST /api/search` (search-first Find Ideas):
+ * original capture path) and `POST /api/search` (search-first Sources):
  * a `text` input is stored as a `note` idea; a `url` input is enriched
  * (oEmbed/OG) and stored, deduped by url.
  */

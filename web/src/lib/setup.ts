@@ -51,7 +51,7 @@ export async function loadSetupStatus(db: typeof Db, now: Date = new Date()): Pr
 }
 
 /**
- * First-time things (components/onboarding/tab-hints.tsx): Find Ideas' + More
+ * First-time things (components/onboarding/tab-hints.tsx): Sources' + More
  * sources glows once; the cog shows the Settings tour once; the Videos tab
  * explains itself once. Write's and Calendar's pills went on 2026-09-27
  * ("non aggiunge nulla").

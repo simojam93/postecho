@@ -55,7 +55,7 @@ export const postOutcome = pgEnum("post_outcome", ["good", "bad"]);
 export const jobKind = pgEnum("job_kind", [
   "generate_from_video", "revise_draft", "image_prompt", "analyze_style", "scout",
   // "generate_from_idea" (M2 agent+generation, 2026-09-22): generates draft
-  // candidates from a Find Ideas card (a scouted/trend or manually-pasted
+  // candidates from a Sources card (a scouted/trend or manually-pasted
   // idea/seed), the same way generate_from_video does from a video
   // transcript — see the drafts API's POST /api/drafts/from-idea (task A4)
   // and materialize.ts's per-kind switch (task A3). Appended, not inserted
