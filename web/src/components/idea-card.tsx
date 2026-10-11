@@ -68,6 +68,8 @@ const KEEPABLE_KINDS = new Set([
   "bluesky", "hackernews", "arxiv", "github", "devto", "mastodon", "producthunt",
   "lobsters", "lemmy",
   "x_post", "article",
+  // A post from a repo (2026-10-11: "vorrei anche mettere nei liked alcuni post da una repo").
+  "repo_post",
 ]);
 
 // Below this, a card's content is unlikely to actually exceed the 5-line

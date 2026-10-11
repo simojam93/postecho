@@ -559,7 +559,7 @@ export default function FindIdeasPage() {
       {mode === "repo" ? (
         activeRepo && (
           <RepoPosts key={activeRepo.id} repo={activeRepo} posts={postsOfRepo(activeRepo.id)} onStatus={setStatus} onUse={useIdea}
-            onChanged={load} refreshKey={repoRefreshKey} />
+            onChanged={load} refreshKey={repoRefreshKey} onMore={() => void repoAgain(activeRepo)} />
         )
       ) : mode === "videos" ? (
         // Nothing to say before the first video: the box says it (2026-09-27: "questo toglilo").

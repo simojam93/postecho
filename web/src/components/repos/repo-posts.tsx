@@ -12,10 +12,10 @@ type Status = "new" | "used" | "dismissed" | "archived" | "kept";
 
 /**
  * The selected source's posts (spec 2026-10-10), as cards like a video's: Use keeps one and opens
- * it in Write, Dismiss hides it. While its latest repo_posts job runs, the steps; when it failed,
- * the agent's sentence.
+ * it in Write, Dismiss hides it, ♥ keeps it in Liked. While its latest repo_posts job runs, the
+ * steps; when it failed, the agent's sentence. Once done, Write more asks again.
  */
-export function RepoPosts({ repo, posts, onStatus, onUse, onChanged, refreshKey = 0 }: {
+export function RepoPosts({ repo, posts, onStatus, onUse, onChanged, onMore, refreshKey = 0 }: {
   repo: Idea;
   /** This source's posts still to review, in Claude's order. */
   posts: Idea[];
@@ -25,6 +25,8 @@ export function RepoPosts({ repo, posts, onStatus, onUse, onChanged, refreshKey 
   onChanged: () => void;
   /** Bumped when a job was just started for this source: look at it. */
   refreshKey?: number;
+  /** Write more: the last ask again, on angles not written yet (2026-10-11: "sotto i 6 della repo… un search more"). */
+  onMore?: () => void;
 }) {
   // undefined until the first answer; null when the source has no job at all.
   const [job, setJob] = useState<JobInfo | null | undefined>(undefined);
@@ -65,6 +67,14 @@ export function RepoPosts({ repo, posts, onStatus, onUse, onChanged, refreshKey 
           {running && [0, 1, 2].map((i) => (
             <div key={i} aria-hidden className="h-56 animate-pulse rounded-2xl border border-border bg-surface" />
           ))}
+        </div>
+      )}
+      {onMore && !running && job?.status === "done" && (
+        <div className="flex justify-center pt-2">
+          <button type="button" onClick={onMore} data-tip="The same ask again, on angles not written yet"
+            className="rounded-full border border-border px-4 py-1.5 text-sm text-text-dim hover:text-text">
+            Write more
+          </button>
         </div>
       )}
     </section>
