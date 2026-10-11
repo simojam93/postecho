@@ -88,7 +88,7 @@ function shortName(source: RepoSource): string {
 
 /**
  * From a repo's box (spec 2026-10-10), laid out like Claude's (owner, 2026-10-11: "sullo stile di
- * claude"), then "From … or …" and "Write ( 6 X posts | 2 X articles )": the source's chips and what to write above the box for what the posts are about
+ * claude"), then "Choose a folder or Paste a GitHub link" and "Write ( 6 X posts | 2 X articles )": the source's chips and what to write above the box for what the posts are about
  * and Create, which look like Trends' and Video posts'. The source is a folder chosen with the Mac's own picker (POST /api/repos/pick, then its
  * pick_folder job) or typed, or a GitHub link. The job's progress and posts show below, under the
  * source's chip (RepoPosts). A chip clicked on the page becomes the source (`repo`, the page's
@@ -225,7 +225,6 @@ export function RepoForm({ onCreated, repo = null, onClear, repos = [], onPick, 
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <span className="text-sm text-text-dim">From</span>
           {chosen ? (
             <span className={`${chipCls} pr-1 hover:bg-surface-2`} title={chosen.type === "folder" ? chosen.path : chosen.url}>
               {repo && onFavorite ? (
@@ -293,7 +292,7 @@ export function RepoForm({ onCreated, repo = null, onClear, repos = [], onPick, 
               ) : (
                 <button type="button" onClick={() => setLinkOpen(true)} className={chipCls}>
                   <Icon d={BRANCH} />
-                  GitHub link
+                  Paste a GitHub link
                 </button>
               )}
             </>
@@ -304,7 +303,7 @@ export function RepoForm({ onCreated, repo = null, onClear, repos = [], onPick, 
           <div role="radiogroup" aria-label="What to write" className="flex rounded-full border border-border p-0.5">
             {FORMATS.map(({ key, label }) => (
               <button key={key} type="button" role="radio" aria-checked={format === key} onClick={() => setFormat(key)}
-                className={`rounded-full px-3 py-1 text-sm ${format === key ? "bg-accent font-medium text-accent-ink" : "text-text-dim hover:text-text"}`}>
+                className={`rounded-full px-3 py-1 text-sm ${format === key ? "bg-border text-text" : "text-text-dim hover:text-text"}`}>
                 {label}
               </button>
             ))}

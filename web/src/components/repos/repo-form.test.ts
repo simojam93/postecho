@@ -59,7 +59,7 @@ describe("From a repo's form: what Create sends (posts from a repo, 2026-10-10)"
   it("renders the two sources, the formats, no count and the note said once", () => {
     const html = renderToStaticMarkup(createElement(RepoForm, { onCreated: () => {} }));
     expect(html).toContain("Choose a folder");
-    expect(html).toContain("GitHub link");
+    expect(html).toContain("Paste a GitHub link");
     // With sources used before, the folder chip opens a menu of them.
     expect(html).not.toContain('aria-haspopup="menu"');
     const withRepos = renderToStaticMarkup(createElement(RepoForm, { onCreated: () => {}, repos: [repo({})] }));
