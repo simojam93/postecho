@@ -88,7 +88,7 @@ function shortName(source: RepoSource): string {
 
 /**
  * From a repo's box (spec 2026-10-10), laid out like Claude's (owner, 2026-10-11: "sullo stile di
- * claude"): chips for the source and for what to write above the box for what the posts are about
+ * claude"), then "From … or …" and "Write ( 6 X posts | 2 X articles )": the source's chips and what to write above the box for what the posts are about
  * and Create, which look like Trends' and Video posts'. The source is a folder chosen with the Mac's own picker (POST /api/repos/pick, then its
  * pick_folder job) or typed, or a GitHub link. The job's progress and posts show below, under the
  * source's chip (RepoPosts). A chip clicked on the page becomes the source (`repo`, the page's
@@ -223,85 +223,92 @@ export function RepoForm({ onCreated, repo = null, onClear, repos = [], onPick, 
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-2">
-        {chosen ? (
-          <span className={`${chipCls} pr-1 hover:bg-surface-2`} title={chosen.type === "folder" ? chosen.path : chosen.url}>
-            {repo && onFavorite ? (
-              <button type="button" onClick={() => onFavorite(repo)}
-                aria-label={repo.meta.favorite ? `Unpin ${chosenName}` : `Pin ${chosenName}`}
-                data-tip={repo.meta.favorite ? "Unpin it" : "Keep it in this menu"}
-                className={repo.meta.favorite ? "text-text" : "text-text-dim hover:text-text"}>
-                {repo.meta.favorite ? "★" : "☆"}
-              </button>
-            ) : (
-              <Icon d={chosen.type === "folder" ? FOLDER : BRANCH} />
-            )}
-            <span className="truncate">{chosenName}</span>
-            <button type="button" onClick={clearChosen} aria-label={`Clear ${chosenName}`}
-              className="rounded-md px-1.5 text-text-dim hover:text-text">
-              ×
-            </button>
-          </span>
-        ) : (
-          <>
-            <div ref={menuRef} className="relative">
-              <button type="button" disabled={picking} className={chipCls}
-                {...(offered.length > 0 ? { "aria-haspopup": "menu" as const, "aria-expanded": menuOpen } : {})}
-                onClick={() => (offered.length > 0 ? setMenuOpen((open) => !open) : void chooseFolder())}>
-                <Icon d={FOLDER} />
-                {picking ? "Choosing…" : "Choose a folder"}
-              </button>
-              {menuOpen && (
-                <div role="menu" className="absolute left-0 top-full z-40 mt-1 w-72 rounded-lg border border-border bg-surface-2 p-1 shadow-lg">
-                  {offered.map((r) => (
-                    <button key={r.id} type="button" role="menuitem" title={r.url ?? undefined}
-                      onClick={() => { setMenuOpen(false); onPick?.(r); }}
-                      className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm hover:bg-border">
-                      <span className={`w-4 shrink-0 text-center ${r.meta.favorite ? "text-text" : "text-text-dim"}`}>
-                        {r.meta.favorite ? "★" : ""}
-                      </span>
-                      <span className="truncate">{r.title ?? r.url}</span>
-                    </button>
-                  ))}
-                  <div className="my-1 border-t border-border" />
-                  <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); void chooseFolder(); }}
-                    className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm text-text-dim hover:bg-border hover:text-text">
-                    <Icon d={FOLDER} />
-                    Choose a folder…
-                  </button>
-                </div>
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <span className="text-sm text-text-dim">From</span>
+          {chosen ? (
+            <span className={`${chipCls} pr-1 hover:bg-surface-2`} title={chosen.type === "folder" ? chosen.path : chosen.url}>
+              {repo && onFavorite ? (
+                <button type="button" onClick={() => onFavorite(repo)}
+                  aria-label={repo.meta.favorite ? `Unpin ${chosenName}` : `Pin ${chosenName}`}
+                  data-tip={repo.meta.favorite ? "Unpin it" : "Keep it in this menu"}
+                  className={repo.meta.favorite ? "text-text" : "text-text-dim hover:text-text"}>
+                  {repo.meta.favorite ? "★" : "☆"}
+                </button>
+              ) : (
+                <Icon d={chosen.type === "folder" ? FOLDER : BRANCH} />
               )}
-            </div>
-            {pathShown && (
-              <input value={path} autoFocus={pathFocus} aria-label="Folder path" placeholder="/Users/you/dev/project"
-                onChange={(e) => { setPath(e.target.value); if (e.target.value) setGithubUrl(""); }}
-                onKeyDown={(e) => e.key === "Enter" && void create()}
-                className={`w-72 ${chipInputCls}`} />
-            )}
-            {linkOpen ? (
-              <input value={githubUrl} autoFocus aria-label="GitHub link" placeholder="https://github.com/owner/name"
-                onChange={(e) => { setGithubUrl(e.target.value); if (e.target.value) { setPath(""); setPathShown(false); } }}
-                onKeyDown={(e) => {
-                  if (e.key === "Escape") { setGithubUrl(""); setLinkOpen(false); }
-                  if (e.key === "Enter" && parseGithubUrl(githubUrl)) setLinkOpen(false);
-                }}
-                onBlur={() => { if (!githubUrl.trim() || parseGithubUrl(githubUrl)) setLinkOpen(false); }}
-                className={`w-72 ${chipInputCls}`} />
-            ) : (
-              <button type="button" onClick={() => setLinkOpen(true)} className={chipCls}>
-                <Icon d={BRANCH} />
-                GitHub link
+              <span className="truncate">{chosenName}</span>
+              <button type="button" onClick={clearChosen} aria-label={`Clear ${chosenName}`}
+                className="rounded-md px-1.5 text-text-dim hover:text-text">
+                ×
               </button>
-            )}
-          </>
-        )}
-        <div role="radiogroup" aria-label="What to write" className="flex h-9 items-center gap-0.5 rounded-lg bg-surface-2 p-0.5">
-          {FORMATS.map(({ key, label }) => (
-            <button key={key} type="button" role="radio" aria-checked={format === key} onClick={() => setFormat(key)}
-              className={`h-8 rounded-md px-3 text-sm ${format === key ? "bg-border text-text" : "text-text-dim hover:text-text"}`}>
-              {label}
-            </button>
-          ))}
+            </span>
+          ) : (
+            <>
+              <div ref={menuRef} className="relative">
+                <button type="button" disabled={picking} className={chipCls}
+                  {...(offered.length > 0 ? { "aria-haspopup": "menu" as const, "aria-expanded": menuOpen } : {})}
+                  onClick={() => (offered.length > 0 ? setMenuOpen((open) => !open) : void chooseFolder())}>
+                  <Icon d={FOLDER} />
+                  {picking ? "Choosing…" : "Choose a folder"}
+                </button>
+                {menuOpen && (
+                  <div role="menu" className="absolute left-0 top-full z-40 mt-1 w-72 rounded-lg border border-border bg-surface-2 p-1 shadow-lg">
+                    {offered.map((r) => (
+                      <button key={r.id} type="button" role="menuitem" title={r.url ?? undefined}
+                        onClick={() => { setMenuOpen(false); onPick?.(r); }}
+                        className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm hover:bg-border">
+                        <span className={`w-4 shrink-0 text-center ${r.meta.favorite ? "text-text" : "text-text-dim"}`}>
+                          {r.meta.favorite ? "★" : ""}
+                        </span>
+                        <span className="truncate">{r.title ?? r.url}</span>
+                      </button>
+                    ))}
+                    <div className="my-1 border-t border-border" />
+                    <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); void chooseFolder(); }}
+                      className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm text-text-dim hover:bg-border hover:text-text">
+                      <Icon d={FOLDER} />
+                      Choose a folder…
+                    </button>
+                  </div>
+                )}
+              </div>
+              {pathShown && (
+                <input value={path} autoFocus={pathFocus} aria-label="Folder path" placeholder="/Users/you/dev/project"
+                  onChange={(e) => { setPath(e.target.value); if (e.target.value) setGithubUrl(""); }}
+                  onKeyDown={(e) => e.key === "Enter" && void create()}
+                  className={`w-72 ${chipInputCls}`} />
+              )}
+              <span className="text-sm text-text-dim">or</span>
+              {linkOpen ? (
+                <input value={githubUrl} autoFocus aria-label="GitHub link" placeholder="https://github.com/owner/name"
+                  onChange={(e) => { setGithubUrl(e.target.value); if (e.target.value) { setPath(""); setPathShown(false); } }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") { setGithubUrl(""); setLinkOpen(false); }
+                    if (e.key === "Enter" && parseGithubUrl(githubUrl)) setLinkOpen(false);
+                  }}
+                  onBlur={() => { if (!githubUrl.trim() || parseGithubUrl(githubUrl)) setLinkOpen(false); }}
+                  className={`w-72 ${chipInputCls}`} />
+              ) : (
+                <button type="button" onClick={() => setLinkOpen(true)} className={chipCls}>
+                  <Icon d={BRANCH} />
+                  GitHub link
+                </button>
+              )}
+            </>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-text-dim">Write</span>
+          <div role="radiogroup" aria-label="What to write" className="flex rounded-full border border-border p-0.5">
+            {FORMATS.map(({ key, label }) => (
+              <button key={key} type="button" role="radio" aria-checked={format === key} onClick={() => setFormat(key)}
+                className={`rounded-full px-3 py-1 text-sm ${format === key ? "bg-accent font-medium text-accent-ink" : "text-text-dim hover:text-text"}`}>
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
       <div className="flex gap-2">
