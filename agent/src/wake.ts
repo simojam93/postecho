@@ -12,9 +12,16 @@ export type Clock = {
   clearTimeout: (handle: TimerHandle) => void;
 };
 
+type Drain = (isStopping: () => boolean) => Promise<void>;
+
 export type WakeControllerOptions = {
   /** Claims until there are none (worker.ts's drain). isStopping turns true once the agent is stopping. */
-  drain: (isStopping: () => boolean) => Promise<void>;
+  drain?: Drain;
+  /**
+   * Instead of `drain`: one drain per lane (worker.ts's LANES), each run on its own, so a video in
+   * the media lane never holds up the next post in the other (2026-10-11).
+   */
+  lanes?: Drain[];
   /** One heartbeat; false when it failed. */
   heartbeat: () => Promise<boolean>;
   /** How long the agent stays awake after the page's last request (AGENT_AWAKE_MINUTES). */
@@ -54,8 +61,10 @@ export function createWakeController(opts: WakeControllerOptions) {
   let awakeUntil = 0;
   let lastHeartbeatAt = -Infinity;
   let heartbeating: Promise<void> | null = null;
-  let draining: Promise<void> | null = null;
-  let again = false;
+  const lanes = (opts.lanes ?? (opts.drain ? [opts.drain] : [])).map((drain) => ({
+    drain, draining: null as Promise<void> | null, again: false,
+  }));
+  const anyDraining = () => lanes.some((lane) => lane.draining !== null);
   let sleepTimer: TimerHandle | null = null;
   let heartbeatTimer: TimerHandle | null = null;
   let idleTimer: TimerHandle | null = null;
@@ -111,7 +120,7 @@ export function createWakeController(opts: WakeControllerOptions) {
       return;
     }
     // A job in hand is finished and reported first: the drain sends the agent to sleep when it ends.
-    if (!draining) goToSleep();
+    if (!anyDraining()) goToSleep();
   }
 
   function wakeUp(): void {
@@ -127,26 +136,31 @@ export function createWakeController(opts: WakeControllerOptions) {
     scheduleHeartbeat();
   }
 
+  /** Claims in every lane; a lane already claiming runs once more after, so a job made just after its last empty claim isn't left waiting. */
   function requestDrain(): Promise<void> {
     if (stopping) return Promise.resolve();
-    if (draining) {
-      again = true;
-      return draining;
+    return Promise.all(lanes.map(requestLane)).then(() => undefined);
+  }
+
+  function requestLane(lane: (typeof lanes)[number]): Promise<void> {
+    if (lane.draining) {
+      lane.again = true;
+      return lane.draining;
     }
-    draining = (async () => {
+    lane.draining = (async () => {
       try {
         do {
-          again = false;
-          await opts.drain(() => stopping);
-        } while (again && !stopping);
+          lane.again = false;
+          await lane.drain(() => stopping);
+        } while (lane.again && !stopping);
       } catch (e) {
         logger.error(`[agent] claiming jobs failed: ${e instanceof Error ? e.message : String(e)}`);
       } finally {
-        draining = null;
-        if (isAwake && !stopping && clock.now() >= awakeUntil) goToSleep();
+        lane.draining = null;
+        if (isAwake && !stopping && !anyDraining() && clock.now() >= awakeUntil) goToSleep();
       }
     })();
-    return draining;
+    return lane.draining;
   }
 
   /** The page asked: wake (or stay awake), then claim until there are none. */
@@ -167,7 +181,7 @@ export function createWakeController(opts: WakeControllerOptions) {
     wake: onPageRequest,
     /** GET /status. */
     status(): { awake: boolean; busy: boolean } {
-      return { awake: isAwake, busy: draining !== null };
+      return { awake: isAwake, busy: anyDraining() };
     },
     /** No more timers or claims; resolves once the job in hand is finished and reported. */
     async stop(): Promise<void> {
@@ -175,7 +189,7 @@ export function createWakeController(opts: WakeControllerOptions) {
       sleepTimer = clear(sleepTimer);
       heartbeatTimer = clear(heartbeatTimer);
       idleTimer = clear(idleTimer);
-      await Promise.all([draining, heartbeating]);
+      await Promise.all([...lanes.map((lane) => lane.draining), heartbeating]);
     },
   };
 }

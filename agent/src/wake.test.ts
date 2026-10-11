@@ -58,6 +58,31 @@ describe("the wake controller", () => {
     expect(drain).toHaveBeenCalledTimes(2);
   });
 
+  it("runs each lane on its own: a long job in one never holds up a new job in the other (2026-10-11)", async () => {
+    const video = deferred();
+    const media = vi.fn(async (_isStopping: () => boolean) => { await video.promise; });
+    const rest = vi.fn(async (_isStopping: () => boolean) => {});
+    const controller = createWakeController({
+      lanes: [rest, media], heartbeat: vi.fn(async () => true), awakeMs: 10 * MIN, idleCheckMs: 0, logger: quiet,
+    });
+    void controller.wake();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(controller.status().busy).toBe(true);
+    // The page makes the next post while the video runs: the other lane claims it at once.
+    void controller.wake();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(rest).toHaveBeenCalledTimes(2);
+    expect(media).toHaveBeenCalledTimes(1);
+    // Past the awake time the agent stays up for the video, then sleeps once it's reported.
+    await vi.advanceTimersByTimeAsync(20 * MIN);
+    expect(controller.status()).toEqual({ awake: true, busy: true });
+    video.resolve();
+    await vi.advanceTimersByTimeAsync(0);
+    // The second wake asked the media lane for one more pass.
+    expect(media).toHaveBeenCalledTimes(2);
+    expect(controller.status()).toEqual({ awake: false, busy: false });
+  });
+
   it("wakes on /wake too", async () => {
     const { controller, drain } = setup();
     await controller.wake();

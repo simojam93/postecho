@@ -79,7 +79,7 @@ describe("claimAndRun", () => {
   it("claims one job, runs it and reports the outcome with the claim's echo", async () => {
     const { client, runHandler, worker } = setup([job("a")]);
     expect(await worker.claimAndRun()).toBe("ran");
-    expect(client.claimJob).toHaveBeenCalledWith(["generate_from_idea"], 0);
+    expect(client.claimJob).toHaveBeenCalledWith(["generate_from_idea"], 0, undefined);
     expect(runHandler).toHaveBeenCalledTimes(1);
     expect(client.postResult).toHaveBeenCalledWith("a", "claimed-a", { ok: true, result: { done: 1 } });
   });

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { AccountBar } from "@/components/account-bar";
 import { AgentWaker } from "@/components/agent-waker";
 import { BrandMark } from "@/components/brand-mark";
+import { MediaNotices } from "@/components/media-notices";
 import { Nav } from "@/components/nav";
 import { SettingsButton } from "@/components/settings/settings-provider";
 
@@ -11,7 +12,8 @@ import { SettingsButton } from "@/components/settings/settings-provider";
  * page scrolls (owner, 2026-09-27: "questa fammela fissa, si scrolla solo la
  * parte a destra di ogni tab"). On a phone the sidebar is the header, so the cog
  * stays by the logo there. AgentWaker wakes the agent on the owner's computer
- * while the app is open.
+ * while the app is open. MediaNotices says when a post's screenshots or video
+ * made in the background are ready.
  */
 export function AppShell({ name, children }: { name: string; children: ReactNode }) {
   return (
@@ -29,6 +31,7 @@ export function AppShell({ name, children }: { name: string; children: ReactNode
       </aside>
       <main className="min-w-0 flex-1">{children}</main>
       <AgentWaker />
+      <MediaNotices />
     </div>
   );
 }

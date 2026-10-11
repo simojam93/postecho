@@ -1,6 +1,6 @@
 import { createWakeController, type WakeController } from "./wake.js";
 import { startWakeServer, type MediaRoutes } from "./wake-server.js";
-import { runPollLoop, type Logger, type Worker } from "./worker.js";
+import { LANES, runPollLoop, type Logger, type Worker } from "./worker.js";
 
 /** What runAgentLoop needs from a listening server. */
 type ClosableServer = { close: () => unknown; closeAllConnections?: () => void };
@@ -49,7 +49,7 @@ export async function runAgentLoop(opts: RunAgentLoopOptions): Promise<"wake" | 
   if (opts.wakePort === 0) return poll();
 
   const controller = createWakeController({
-    drain: (isStopping) => opts.worker.drain(isStopping),
+    lanes: LANES.map((lane) => (isStopping: () => boolean) => opts.worker.drain(isStopping, lane)),
     heartbeat: () => opts.worker.heartbeat(),
     awakeMs: opts.awakeMs,
     idleCheckMs: opts.idleCheckMs,

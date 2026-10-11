@@ -89,3 +89,20 @@ only run for `source.type === "folder"` and refuses otherwise. The result is
   and media in the Schedule sequence.
 - Live: a card and images for a post from `simojam93/jev-judge`; screenshots and a video for a post from
   `~/dev/postecho`.
+
+## Made in the background (2026-10-11)
+
+Owner: "sul post 2 di 10 voglio fare un video e lo lascio a creare mentre creo il resto".
+
+- **Two lanes on the agent.** In wake mode the agent claims in two lanes, each one job at a time:
+  `media` (screenshots and videos) and `rest` (everything else). The claim route takes `lane=media|rest`;
+  without it, any job, as older agents ask. So a 30-minute video never holds up the next post.
+- **A notice when it's ready.** `GET /api/jobs/active` names the post of a screenshots or video job
+  (`media: { kind, ideaId, title }`). When one the page saw running ends, a notice in the corner of every
+  page says "Video ready to check in “…”" (or that it didn't work), with Open (Compose, on that post)
+  and ×. With PostEcho in the background, a notification of the Mac says it too: the page asks for that
+  permission once, when the owner starts screenshots or a video.
+- Under the wait: "Go on with your other posts: PostEcho tells you when it's ready."
+- **A lost claim.** The heartbeat lists the jobs the agent is running; a claim over a minute old that isn't
+  in it is marked failed ("The agent stopped before finishing. Try again."), so a post isn't blocked by
+  "already making media" until the 45-minute sweep.

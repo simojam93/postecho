@@ -53,6 +53,14 @@ export type WorkerOptions = {
 export type ClaimResult = "ran" | "empty" | "error";
 
 /**
+ * The two lanes the wake mode claims in (2026-10-11): screenshots and videos, which run for up to
+ * 40 minutes, and everything else, so the owner keeps writing while a video is made. One job at a
+ * time per lane. The server (api/agent/jobs's lane=) splits them.
+ */
+export const LANES = ["rest", "media"] as const;
+export type Lane = (typeof LANES)[number];
+
+/**
  * Claim, run and report, shared by the poll loop and the wake mode. Single
  * concurrency by construction: a caller awaits one claimAndRun before the
  * next, never Promise.all across jobs. The point is one job on the owner's
@@ -62,13 +70,13 @@ export function createWorker(opts: WorkerOptions) {
   const { client, runner, deps, kinds } = opts;
   const run = opts.runHandler ?? realRunHandler;
   const logger = opts.logger ?? console;
-  /** The job being run right now, if any: the heartbeat says so, and the app fails a claim the agent no longer has. */
-  let runningJobId: string | null = null;
+  /** The jobs being run right now, one per lane at most: the heartbeat says so, and the app fails a claim the agent no longer has. */
+  const runningJobIds = new Set<string>();
 
   /** POST /api/agent/heartbeat, following the model picked in Settings › AI tools. False when it failed. */
   async function heartbeat(): Promise<boolean> {
     try {
-      const answer = await client.heartbeat(kinds, runningJobId ? [runningJobId] : []);
+      const answer = await client.heartbeat(kinds, [...runningJobIds]);
       if (answer.claudeModel && answer.claudeModel !== runner.model) {
         runner.setModel(answer.claudeModel);
         logger.log(`[agent] writing with Claude ${answer.claudeModel} from now on (Settings › AI tools)`);
@@ -86,10 +94,10 @@ export function createWorker(opts: WorkerOptions) {
    * (the server marked it claimed), so it always runs rather than sitting in
    * `claimed` until the 10-minute stale sweep.
    */
-  async function claimAndRun(): Promise<ClaimResult> {
+  async function claimAndRun(lane?: Lane): Promise<ClaimResult> {
     let job: Job | null;
     try {
-      job = await client.claimJob(kinds, opts.pollWaitSeconds);
+      job = await client.claimJob(kinds, opts.pollWaitSeconds, lane);
     } catch (e) {
       logger.error(`[agent] claimJob failed: ${errorMessage(e)}`);
       return "error";
@@ -105,7 +113,7 @@ export function createWorker(opts: WorkerOptions) {
     const long = LONG_READS.has(job.kind);
     // A long media job's one Claude call may use all the time left, not CLAUDE_TIMEOUT_MS.
     const ownTime = budget > JOB_BUDGET_MS;
-    runningJobId = job.id;
+    runningJobIds.add(job.id);
     const outcome = await run(job, {
       ...deps,
       runClaudeJson: (o) => runner.runClaudeJson({
@@ -123,15 +131,15 @@ export function createWorker(opts: WorkerOptions) {
     } catch (e) {
       logger.error(`[agent] postResult failed for job ${job.id}: ${errorMessage(e)}`);
     } finally {
-      runningJobId = null;
+      runningJobIds.delete(job.id);
     }
     return "ran";
   }
 
   /** Claims until the queue is empty. A failed claim ends it too: the next wake tries again, so an unreachable app isn't hammered. */
-  async function drain(isStopping: () => boolean): Promise<void> {
+  async function drain(isStopping: () => boolean, lane?: Lane): Promise<void> {
     while (!isStopping()) {
-      if ((await claimAndRun()) !== "ran") return;
+      if ((await claimAndRun(lane)) !== "ran") return;
     }
   }
 

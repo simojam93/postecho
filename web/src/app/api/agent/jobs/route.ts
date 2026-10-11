@@ -19,6 +19,15 @@ const JobKind = z.enum(jobKind.enumValues);
 const MAX_WAIT_SECONDS = 25;
 const POLL_INTERVAL_MS = 2000;
 
+/**
+ * The agent's two lanes (2026-10-11, owner: "sul post 2 di 10 voglio fare un video e lo lascio a
+ * creare mentre creo il resto"): `media` claims only screenshots and videos, which run for up to 40
+ * minutes, and `rest` everything else, so a video never holds up the next post. No lane: any job,
+ * as an agent from before this asks.
+ */
+const Lane = z.enum(["media", "rest"]);
+type Lane = z.infer<typeof Lane>;
+
 type ClaimedRow = { id: string; kind: string; payload: Record<string, unknown>; created_at: string };
 
 /**
@@ -93,13 +102,15 @@ async function requeueStaleClaims(): Promise<void> {
  * result report. Binding the same millisecond-precision `Date` value for
  * both the write and the echo keeps the two sides exact.
  */
-async function claimOne(kinds: string[]) {
+async function claimOne(kinds: string[], lane: Lane | null) {
   const claimedAt = new Date();
+  const longMedia = sql`(kind = 'post_media' AND payload->>'kind' IN (${sql.join(LONG_MEDIA_KINDS.map((k) => sql`${k}`), sql`, `)}))`;
+  const inLane = lane === "media" ? sql` AND ${longMedia}` : lane === "rest" ? sql` AND NOT ${longMedia}` : sql``;
   const result = await db.execute<ClaimedRow>(sql`
     UPDATE jobs SET status = 'claimed', claimed_at = ${claimedAt}
     WHERE id = (
       SELECT id FROM jobs
-      WHERE status = 'queued' AND kind IN (${sql.join(kinds.map((k) => sql`${k}`), sql`, `)})
+      WHERE status = 'queued' AND kind IN (${sql.join(kinds.map((k) => sql`${k}`), sql`, `)})${inLane}
       ORDER BY created_at ASC, id ASC
       FOR UPDATE SKIP LOCKED
       LIMIT 1
@@ -126,7 +137,7 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
 }
 
 /**
- * GET /api/agent/jobs?kinds=a,b&wait=N
+ * GET /api/agent/jobs?kinds=a,b&wait=N[&lane=media|rest]
  *
  * Long-polling claim endpoint: an agent asks for one job of the given
  * kind(s) and is willing to hold the connection open up to `wait` seconds
@@ -156,6 +167,11 @@ export async function GET(request: Request) {
   if (!kindsResult.success) return Response.json({ error: "bad request" }, { status: 400 });
   const kinds = kindsResult.data;
 
+  const laneParam = url.searchParams.get("lane");
+  const laneResult = Lane.nullable().safeParse(laneParam);
+  if (!laneResult.success) return Response.json({ error: "bad request" }, { status: 400 });
+  const lane = laneResult.data;
+
   const waitRaw = Number(url.searchParams.get("wait"));
   const waitSeconds = Number.isFinite(waitRaw) ? Math.min(Math.max(waitRaw, 0), MAX_WAIT_SECONDS) : 0;
   const deadline = Date.now() + waitSeconds * 1000;
@@ -165,7 +181,7 @@ export async function GET(request: Request) {
 
     for (;;) {
       if (request.signal.aborted) return new Response(null, { status: 499 });
-      const job = await claimOne(kinds);
+      const job = await claimOne(kinds, lane);
       if (job) return Response.json({ job });
 
       const remaining = deadline - Date.now();

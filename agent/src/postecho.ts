@@ -106,8 +106,8 @@ export function createPostEchoClient(opts: PostEchoClientOptions) {
 
   return {
     /** GET /api/agent/jobs?kinds=&wait= — one claimed job, or null on 204 (nothing queued within the wait window). */
-    async claimJob(kinds: string[], waitSeconds: number): Promise<Job | null> {
-      const qs = new URLSearchParams({ kinds: kinds.join(","), wait: String(waitSeconds) });
+    async claimJob(kinds: string[], waitSeconds: number, lane?: "media" | "rest"): Promise<Job | null> {
+      const qs = new URLSearchParams({ kinds: kinds.join(","), wait: String(waitSeconds), ...(lane ? { lane } : {}) });
       const res = await request(`/api/agent/jobs?${qs.toString()}`);
       if (res.status === 204) return null;
       if (!res.ok) throw await describeFailure(res, "claimJob");

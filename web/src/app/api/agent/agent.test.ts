@@ -129,6 +129,26 @@ describe("claim", () => {
     expect((await res.json()).job).toMatchObject({ kind: "post_media", payload: { kind: "card" } });
   });
 
+  it("lane=media claims only screenshots and videos, lane=rest everything else (two lanes, 2026-10-11)", async () => {
+    const ago = (s: number) => new Date(Date.now() - s * 1000);
+    await state.db!.insert(jobs).values([
+      { kind: "post_media", payload: { kind: "video" }, createdAt: ago(30) },
+      { kind: "post_media", payload: { kind: "card" }, createdAt: ago(20) },
+      { kind: "repo_posts", payload: {}, createdAt: ago(10) },
+    ]);
+    const claim = async (lane: string) => {
+      const res = await GET(new Request(`http://test/api/agent/jobs?kinds=post_media,repo_posts&wait=0&lane=${lane}`, { headers: auth }));
+      return res.status === 200 ? (await res.json()).job : null;
+    };
+    expect(await claim("rest")).toMatchObject({ kind: "post_media", payload: { kind: "card" } });
+    expect(await claim("rest")).toMatchObject({ kind: "repo_posts" });
+    expect(await claim("rest")).toBeNull();
+    expect(await claim("media")).toMatchObject({ kind: "post_media", payload: { kind: "video" } });
+    expect(await claim("media")).toBeNull();
+    const bad = await GET(new Request("http://test/api/agent/jobs?kinds=post_media&wait=0&lane=fast", { headers: auth }));
+    expect(bad.status).toBe(400);
+  });
+
   it("waits 45 minutes, not 10, before re-queueing screenshots and videos (media from a repo, 2026-10-11)", async () => {
     const ago = (min: number) => new Date(Date.now() - min * 60 * 1000);
     const [shots] = await state.db!.insert(jobs).values({ kind: "post_media", payload: { kind: "screenshots" }, status: "claimed", claimedAt: ago(20) }).returning();

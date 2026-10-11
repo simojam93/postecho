@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { applyJobs, DONE_SHOWN_MS, POLL_MS, refreshWork, resetWork, TAB_OF_KIND, trackWork, workSnapshot } from "./work-status";
+import { applyJobs, dismissNotice, DONE_SHOWN_MS, noticesSnapshot, POLL_MS, refreshWork, resetWork, TAB_OF_KIND, trackWork, workSnapshot } from "./work-status";
 
 beforeEach(() => { vi.useFakeTimers(); resetWork(); });
 afterEach(() => { resetWork(); vi.useRealTimers(); });
@@ -60,5 +60,27 @@ describe("the sidebar's work marks (2026-09-27: \"un charging che poi diventa un
     expect(workSnapshot().find).toBe("done");
     await vi.advanceTimersByTimeAsync(POLL_MS * 3);
     expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("notices for a post's screenshots or video (2026-10-11: \"poi esce una notifica\")", () => {
+  const media = { kind: "video", ideaId: "i1", title: "PostEcho writes from your code" };
+
+  it("says once that a video seen running is ready, or that it failed, until dismissed", () => {
+    applyJobs([{ id: "v", kind: "post_media", status: "claimed", media }, { id: "s", kind: "post_media", status: "queued", media: { ...media, kind: "screenshots" } }]);
+    expect(noticesSnapshot()).toEqual([]);
+    applyJobs([{ id: "v", kind: "post_media", status: "done", media }, { id: "s", kind: "post_media", status: "claimed", media: { ...media, kind: "screenshots" } }]);
+    expect(noticesSnapshot()).toEqual([{ jobId: "v", kind: "video", ideaId: "i1", title: media.title, ok: true }]);
+    applyJobs([{ id: "v", kind: "post_media", status: "done", media }, { id: "s", kind: "post_media", status: "failed", media: { ...media, kind: "screenshots" } }]);
+    expect(noticesSnapshot().map((n) => [n.jobId, n.kind, n.ok])).toEqual([["v", "video", true], ["s", "screenshots", false]]);
+    dismissNotice("v");
+    expect(noticesSnapshot().map((n) => n.jobId)).toEqual(["s"]);
+  });
+
+  it("says nothing for a job it never saw running, nor for one gone from the list", () => {
+    applyJobs([{ id: "v", kind: "post_media", status: "done", media }]);
+    applyJobs([{ id: "w", kind: "post_media", status: "claimed", media }]);
+    applyJobs([]);
+    expect(noticesSnapshot()).toEqual([]);
   });
 });

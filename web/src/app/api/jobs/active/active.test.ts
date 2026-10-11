@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestDb } from "@/test/db";
-import { jobs } from "@/db/schema";
+import { drafts, ideas, jobs } from "@/db/schema";
 
 const state: { db: Awaited<ReturnType<typeof createTestDb>> | null } = { db: null };
 vi.mock("@/db", () => ({ get db() { return state.db; } }));
@@ -25,5 +25,18 @@ describe("GET /api/jobs/active (2026-09-27: the sidebar's \"charging… tick ver
       "generate_from_idea:done", "generate_from_video:failed", "revise_draft:claimed", "video_ideas:queued",
     ]);
     expect(Object.keys(body.jobs[0]).sort()).toEqual(["id", "kind", "status"]);
+  });
+
+  it("names the post a screenshots or video job is for, for the notice that they're ready (2026-10-11)", async () => {
+    const [idea] = await state.db!.insert(ideas).values({ kind: "repo", title: "idea" } as never).returning();
+    const [draft] = await state.db!.insert(drafts).values({ ideaId: idea!.id, xText: "PostEcho now writes posts straight from your code, and checks they sound human." } as never).returning();
+    await state.db!.insert(jobs).values([
+      { kind: "post_media", status: "claimed", payload: { draftId: draft!.id, kind: "video" } },
+      { kind: "post_media", status: "claimed", payload: { draftId: draft!.id, kind: "card" } },
+    ]);
+    const body = await (await GET()).json();
+    const video = body.jobs.find((j: { media?: unknown }) => j.media);
+    expect(video.media).toEqual({ kind: "video", ideaId: idea!.id, title: "PostEcho now writes posts straight from your co…" });
+    expect(body.jobs.filter((j: { media?: unknown }) => j.media)).toHaveLength(1);
   });
 });

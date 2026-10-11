@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { WorkStep } from "@/components/work-progress";
 import { refreshWork } from "@/components/work-status";
-import { mediaOf, type MediaItem, type MediaKind } from "@/lib/media";
+import { askForNotifications } from "@/components/media-notices";
+import { LONG_MEDIA_KINDS, mediaOf, type MediaItem, type MediaKind } from "@/lib/media";
 import { AGENT_PORT, deleteMediaFile, mediaUrl, revealMedia } from "@/lib/media-client";
 import { GenerationProgress } from "./generation-progress";
 import type { JobInfo } from "./types";
@@ -126,6 +127,9 @@ export function MediaView({
       </div>
 
       {running(job) && job && <GenerationProgress job={job} steps={mediaSteps(job)} typical={MEDIA_TYPICAL[kindOf(job)]} />}
+      {running(job) && job && LONG_MEDIA_KINDS.includes(kindOf(job)) && (
+        <p className="text-xs text-text-dim">Go on with your other posts: PostEcho tells you when it&apos;s ready.</p>
+      )}
       {(error ?? failed) && <p className="text-sm text-danger">{error ?? failed}</p>}
 
       {media.length > 0 && (
@@ -206,6 +210,8 @@ export function PostMedia({ draftId }: { draftId: string }) {
 
   async function add(kind: MediaKind) {
     if (busy) return;
+    // Screenshots and a video take minutes: the Mac's notification says they're ready (media-notices.tsx).
+    if (LONG_MEDIA_KINDS.includes(kind)) askForNotifications();
     setBusy(true);
     setError(null);
     try {

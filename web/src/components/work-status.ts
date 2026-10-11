@@ -92,8 +92,40 @@ export async function trackWork<T>(tab: WorkTab, work: Promise<T>, ok: (value: T
   }
 }
 
+/**
+ * A post's screenshots or video that ended while the owner went on writing (2026-10-11, owner:
+ * "se voglio continuare a creare post si creano i media anche in parallelo e poi esce una
+ * notifica"). MediaNotices shows each until it's opened or dismissed.
+ */
+export type MediaNotice = { jobId: string; kind: "screenshots" | "video"; ideaId: string; title: string; ok: boolean };
+type JobMedia = { kind: string; ideaId: string; title: string };
+
+let notices: readonly MediaNotice[] = [];
+const noticeListeners = new Set<() => void>();
+/** Long media jobs seen queued or running, with what the notice says. */
+const seenMedia = new Map<string, JobMedia>();
+
+function setNotices(next: readonly MediaNotice[]): void {
+  notices = next;
+  for (const listener of noticeListeners) listener();
+}
+export function subscribeNotices(listener: () => void): () => void {
+  noticeListeners.add(listener);
+  return () => { noticeListeners.delete(listener); };
+}
+export function noticesSnapshot(): readonly MediaNotice[] {
+  return notices;
+}
+const NO_NOTICES: readonly MediaNotice[] = [];
+export function serverNoticesSnapshot(): readonly MediaNotice[] {
+  return NO_NOTICES;
+}
+export function dismissNotice(jobId: string): void {
+  setNotices(notices.filter((n) => n.jobId !== jobId));
+}
+
 /** One read of GET /api/jobs/active: which tabs have jobs running, and which just ended. */
-export function applyJobs(rows: ReadonlyArray<{ id: string; kind: string; status: string }>): void {
+export function applyJobs(rows: ReadonlyArray<{ id: string; kind: string; status: string; media?: JobMedia }>): void {
   const running: Record<WorkTab, boolean> = { find: false, write: false };
   const live = new Set<string>();
   for (const row of rows) {
@@ -112,6 +144,23 @@ export function applyJobs(rows: ReadonlyArray<{ id: string; kind: string; status
   }
   for (const tab of TABS) jobsRunning[tab] = running[tab];
   emit();
+  noticeMedia(rows);
+}
+
+function noticeMedia(rows: ReadonlyArray<{ id: string; status: string; media?: JobMedia }>): void {
+  const added: MediaNotice[] = [];
+  for (const row of rows) {
+    if (row.media && (row.status === "queued" || row.status === "claimed")) seenMedia.set(row.id, row.media);
+  }
+  for (const [id, media] of seenMedia) {
+    const status = rows.find((row) => row.id === id)?.status;
+    if (status === "queued" || status === "claimed") continue;
+    seenMedia.delete(id);
+    // Gone from the list: it ended longer ago than the list reaches, and nobody can say how.
+    if (status !== "done" && status !== "failed") continue;
+    added.push({ jobId: id, kind: media.kind === "screenshots" ? "screenshots" : "video", ideaId: media.ideaId, title: media.title, ok: status === "done" });
+  }
+  if (added.length) setNotices([...notices, ...added]);
 }
 
 /** Reads the jobs (GET /api/jobs/active) and, while one runs, reads again in POLL_MS. Best effort: a failed read changes nothing. */
@@ -138,6 +187,8 @@ export function resetWork(): void {
   pollTimer = null;
   reading = false;
   seen.clear();
+  seenMedia.clear();
+  notices = [];
   for (const tab of TABS) {
     local[tab] = 0;
     jobsRunning[tab] = false;

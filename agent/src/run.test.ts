@@ -62,7 +62,8 @@ describe("runAgentLoop", () => {
     expect(worker.claimAndRun).not.toHaveBeenCalled();
     expect(worker.heartbeat).not.toHaveBeenCalled();
     await controller!.wake();
-    expect(worker.drain).toHaveBeenCalledTimes(1);
+    // One drain per lane: everything else, and screenshots and videos (2026-10-11).
+    expect((worker.drain.mock.calls as unknown[][]).map((c) => c[1])).toEqual(["rest", "media"]);
     s.stop();
     expect(await running).toBe("wake");
     expect(server.close).toHaveBeenCalled();
