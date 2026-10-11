@@ -6,11 +6,13 @@ import { refreshWork } from "@/components/work-status";
 import { parseGithubUrl } from "@/lib/repo-source";
 import type { RepoFormat } from "./repo-steps";
 
-/** The format control, in the order the spec names them. */
+/**
+ * What gets written, said with how many (owner, 2026-10-11: "non è chiaro cosa ti fa fare quel
+ * pulsante"). No LinkedIn post here: Compose writes each post's LinkedIn version from the repo.
+ */
 const FORMATS: { key: RepoFormat; label: string }[] = [
-  { key: "x", label: "X post" },
-  { key: "linkedin", label: "LinkedIn post" },
-  { key: "article", label: "X article" },
+  { key: "x", label: "6 X posts" },
+  { key: "article", label: "2 X articles" },
 ];
 /** No count to pick (owner, 2026-10-10): six posts each time, two articles, which take far longer to write and read. */
 const countFor = (format: RepoFormat) => (format === "article" ? 2 : 6);
@@ -74,8 +76,6 @@ const Icon = ({ d }: { d: string }) => (
 );
 const FOLDER = "M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z";
 const BRANCH = "M6 3v12M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM18 9a9 9 0 0 1-9 9";
-const TEXT = "M4 6h16M4 12h16M4 18h10";
-const ENTER = "M20 5v7a3 3 0 0 1-3 3H5m4-4-4 4 4 4";
 
 /** A folder's last part, a link's owner/name: what its chip says. */
 function shortName(source: RepoSource): string {
@@ -88,8 +88,8 @@ function shortName(source: RepoSource): string {
 
 /**
  * From a repo's box (spec 2026-10-10), laid out like Claude's (owner, 2026-10-11: "sullo stile di
- * claude"): chips for the source and the format above one box for what the posts are about, with ↵
- * to create. The source is a folder chosen with the Mac's own picker (POST /api/repos/pick, then its
+ * claude"): chips for the source and for what to write above the box for what the posts are about
+ * and Create, which look like Trends' and Video posts'. The source is a folder chosen with the Mac's own picker (POST /api/repos/pick, then its
  * pick_folder job) or typed, or a GitHub link. The job's progress and posts show below, under the
  * source's chip (RepoPosts). A chip clicked on the page becomes the source (`repo`, the page's
  * selection) and stays after Create, so the same repo can be asked other things; its × (`onClear`)
@@ -295,23 +295,24 @@ export function RepoForm({ onCreated, repo = null, onClear, repos = [], onPick, 
             )}
           </>
         )}
-        <label className={`${chipCls} relative cursor-pointer`}>
-          <Icon d={TEXT} />
-          <select value={format} aria-label="Format" onChange={(e) => setFormat(e.target.value as RepoFormat)}
-            className="cursor-pointer appearance-none bg-transparent pr-1 outline-none">
-            {FORMATS.map(({ key, label }) => <option key={key} value={key}>{label}</option>)}
-          </select>
-        </label>
+        <div role="radiogroup" aria-label="What to write" className="flex h-9 items-center gap-0.5 rounded-lg bg-surface-2 p-0.5">
+          {FORMATS.map(({ key, label }) => (
+            <button key={key} type="button" role="radio" aria-checked={format === key} onClick={() => setFormat(key)}
+              className={`h-8 rounded-md px-3 text-sm ${format === key ? "bg-border text-text" : "text-text-dim hover:text-text"}`}>
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
-      <div className="flex items-center gap-2 rounded-xl border border-border bg-surface-2 py-1.5 pl-4 pr-1.5 focus-within:border-text-dim">
+      <div className="flex gap-2">
         <input value={brief} maxLength={BRIEF_MAX} aria-label="What the posts are about"
-          placeholder="What should they be about? Like the launch of tier gating"
+          placeholder="What they're about, like the launch of tier gating"
           onChange={(e) => setBrief(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && void create()}
-          className="min-w-0 flex-1 bg-transparent py-2 text-sm outline-none" />
-        <button type="button" onClick={() => void create()} disabled={busy} aria-label="Create" data-tip="Create"
-          className="rounded-lg p-2 text-text-dim hover:bg-border hover:text-text disabled:opacity-50">
-          <Icon d={ENTER} />
+          className="flex-1 rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-text-dim" />
+        <button type="button" onClick={() => void create()} disabled={busy}
+          className="rounded-full bg-accent px-4 py-2 text-sm font-medium text-accent-ink disabled:opacity-50">
+          {busy ? "Creating…" : "Create"}
         </button>
       </div>
       <p className="text-xs text-text-dim">The repository&apos;s content goes to Claude to write the posts.</p>
