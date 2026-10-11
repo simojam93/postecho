@@ -62,11 +62,13 @@ export function createWorker(opts: WorkerOptions) {
   const { client, runner, deps, kinds } = opts;
   const run = opts.runHandler ?? realRunHandler;
   const logger = opts.logger ?? console;
+  /** The job being run right now, if any: the heartbeat says so, and the app fails a claim the agent no longer has. */
+  let runningJobId: string | null = null;
 
   /** POST /api/agent/heartbeat, following the model picked in Settings › AI tools. False when it failed. */
   async function heartbeat(): Promise<boolean> {
     try {
-      const answer = await client.heartbeat(kinds);
+      const answer = await client.heartbeat(kinds, runningJobId ? [runningJobId] : []);
       if (answer.claudeModel && answer.claudeModel !== runner.model) {
         runner.setModel(answer.claudeModel);
         logger.log(`[agent] writing with Claude ${answer.claudeModel} from now on (Settings › AI tools)`);
@@ -103,6 +105,7 @@ export function createWorker(opts: WorkerOptions) {
     const long = LONG_READS.has(job.kind);
     // A long media job's one Claude call may use all the time left, not CLAUDE_TIMEOUT_MS.
     const ownTime = budget > JOB_BUDGET_MS;
+    runningJobId = job.id;
     const outcome = await run(job, {
       ...deps,
       runClaudeJson: (o) => runner.runClaudeJson({
@@ -119,6 +122,8 @@ export function createWorker(opts: WorkerOptions) {
       await client.postResult(job.id, job.claimedAt, outcome);
     } catch (e) {
       logger.error(`[agent] postResult failed for job ${job.id}: ${errorMessage(e)}`);
+    } finally {
+      runningJobId = null;
     }
     return "ran";
   }

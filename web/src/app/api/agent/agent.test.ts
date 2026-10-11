@@ -380,6 +380,29 @@ describe("heartbeat", () => {
     expect(await getSetting(state.db as never, "agentKinds")).toEqual(["a", "b"]);
   });
 
+  it("fails a claim the agent no longer has, and leaves its running job and fresh claims alone (2026-10-11)", async () => {
+    const { jobs } = await import("@/db/schema");
+    const { eq } = await import("drizzle-orm");
+    const d = state.db as never as typeof import("@/db").db;
+    const old = new Date(Date.now() - 5 * 60_000);
+    const [lost, mine, fresh] = await d.insert(jobs).values([
+      { kind: "post_media", status: "claimed", claimedAt: old },
+      { kind: "post_media", status: "claimed", claimedAt: old },
+      { kind: "post_media", status: "claimed", claimedAt: new Date() },
+    ]).returning();
+    const beat = (body: unknown) => heartbeat(new Request("http://test", {
+      method: "POST", headers: { ...auth, "Content-Type": "application/json" }, body: JSON.stringify(body),
+    }));
+    // An older agent sends no list: nothing changes.
+    await beat({ kinds: [] });
+    expect((await d.select().from(jobs).where(eq(jobs.id, lost!.id)))[0]!.status).toBe("claimed");
+    await beat({ kinds: [], running: [mine!.id] });
+    const status = async (id: string) => (await d.select().from(jobs).where(eq(jobs.id, id)))[0]!;
+    expect(await status(lost!.id)).toMatchObject({ status: "failed", result: { error: "The agent stopped before finishing. Try again." } });
+    expect((await status(mine!.id)).status).toBe("claimed");
+    expect((await status(fresh!.id)).status).toBe("claimed");
+  });
+
   it("answers with the Claude model the owner picked, Sonnet by default (2026-09-26)", async () => {
     const beat = () => heartbeat(new Request("http://test", {
       method: "POST", headers: { ...auth, "Content-Type": "application/json" }, body: JSON.stringify({ kinds: [] }),

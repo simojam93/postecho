@@ -136,12 +136,13 @@ export function createPostEchoClient(opts: PostEchoClientOptions) {
      * POST /api/agent/heartbeat — records "last seen" (the body is informational:
      * the server doesn't key off `kinds`). The answer carries the Claude model the
      * owner picked in Settings › AI tools (2026-09-26); null from an older web app
-     * or for anything but a known alias, meaning no change.
+     * or for anything but a known alias, meaning no change. `running` lists the
+     * jobs this agent is running now, so the app can fail a claim it lost.
      */
-    async heartbeat(kinds: string[]): Promise<{ claudeModel: ClaudeModel | null }> {
+    async heartbeat(kinds: string[], running: string[] = []): Promise<{ claudeModel: ClaudeModel | null }> {
       const res = await request(`/api/agent/heartbeat`, {
         method: "POST",
-        body: JSON.stringify({ kinds }),
+        body: JSON.stringify({ kinds, running }),
       });
       if (!res.ok) throw await describeFailure(res, "heartbeat");
       const body = (await res.json().catch(() => null)) as { claudeModel?: unknown } | null;

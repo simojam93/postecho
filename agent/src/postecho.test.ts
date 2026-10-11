@@ -126,8 +126,8 @@ describe("createPostEchoClient", () => {
         return new Response(JSON.stringify({ ok: true }), { status: 200 });
       });
 
-      await client(fetchImpl).heartbeat(["generate_from_video", "revise_draft"]);
-      expect(capturedBody).toEqual({ kinds: ["generate_from_video", "revise_draft"] });
+      await client(fetchImpl).heartbeat(["generate_from_video", "revise_draft"], ["job-1"]);
+      expect(capturedBody).toEqual({ kinds: ["generate_from_video", "revise_draft"], running: ["job-1"] });
     });
 
     it("reads back the Claude model the owner picked, and only a known one (2026-09-26)", async () => {

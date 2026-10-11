@@ -47,7 +47,7 @@ function fakeClient(queue: Array<Job | Error> = []) {
       return next ?? null;
     }),
     postResult: vi.fn(async (_id: string, _claimedAt: string, _outcome: JobOutcome) => {}),
-    heartbeat: vi.fn(async () => ({ claudeModel: null as "sonnet" | "opus" | "haiku" | null })),
+    heartbeat: vi.fn(async (_kinds: string[], _running?: string[]) => ({ claudeModel: null as "sonnet" | "opus" | "haiku" | null })),
     reportProgress: vi.fn(async () => {}),
   } satisfies WorkerClient;
   return client;
@@ -126,6 +126,19 @@ describe("heartbeat", () => {
     client.heartbeat.mockResolvedValueOnce({ claudeModel: "opus" });
     expect(await worker.heartbeat()).toBe(true);
     expect(runner.setModel).toHaveBeenCalledWith("opus");
+  });
+
+  it("lists the job it's running, and none once it's reported", async () => {
+    const client = fakeClient([job("a")]);
+    let worker!: ReturnType<typeof createWorker>;
+    worker = createWorker({
+      client, runner: fakeRunner(), kinds: ["generate_from_idea"], pollWaitSeconds: 0, logger: quiet,
+      deps: { getProfile: vi.fn(), runClaudeJson: vi.fn() } as never,
+      runHandler: async () => { await worker.heartbeat(); return { ok: true, result: {} }; },
+    });
+    await worker.claimAndRun();
+    await worker.heartbeat();
+    expect(client.heartbeat.mock.calls.map((c) => c[1])).toEqual([["a"], []]);
   });
 
   it("says false when it fails, without throwing", async () => {
