@@ -8,6 +8,8 @@ export default defineConfig({
     // The first test of a file boots PGlite and runs every migration, which under a full parallel run
     // can take longer than Vitest's default 5 s on a laptop, and more on a CI runner.
     testTimeout: process.env.CI ? 30_000 : 15_000,
+    // The same boot in a beforeEach: on a busy Mac, 10 s wasn't enough (2026-10-11).
+    hookTimeout: process.env.CI ? 60_000 : 30_000,
   },
   resolve: {
     alias: { "@": path.resolve(__dirname, "src") },
