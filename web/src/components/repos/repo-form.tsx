@@ -107,6 +107,8 @@ export function RepoForm({ onCreated, repo = null, onClear, repos = [], onPick, 
   onFavorite?: (repo: Idea) => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  // ☆ on a source not used yet: it's pinned once Create makes it.
+  const [pinNew, setPinNew] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!menuOpen) return;
@@ -198,6 +200,13 @@ export function RepoForm({ onCreated, repo = null, onClear, repos = [], onPick, 
       setPathShown(false);
       setLinkOpen(false);
       setBrief("");
+      // ☆ pressed on a new source: pinned now that it exists.
+      if (pinNew && !repo) {
+        await fetch(`/api/ideas/${body.ideaId}`, {
+          method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ favorite: true }),
+        }).catch((e) => console.error("couldn't pin the source:", e));
+      }
+      setPinNew(false);
       onCreated(body.ideaId);
       void refreshWork();
     } catch (e) {
@@ -218,6 +227,7 @@ export function RepoForm({ onCreated, repo = null, onClear, repos = [], onPick, 
     if (repo) { onClear?.(); return; }
     setPath("");
     setGithubUrl("");
+    setPinNew(false);
   }
   const chosenName = repo ? repo.title ?? repo.url ?? "" : chosen ? shortName(chosen) : "";
 
@@ -227,16 +237,19 @@ export function RepoForm({ onCreated, repo = null, onClear, repos = [], onPick, 
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           {chosen ? (
             <span className={`${chipCls} pr-1 hover:bg-surface-2`} title={chosen.type === "folder" ? chosen.path : chosen.url}>
-              {repo && onFavorite ? (
-                <button type="button" onClick={() => onFavorite(repo)}
-                  aria-label={repo.meta.favorite ? `Unpin ${chosenName}` : `Pin ${chosenName}`}
-                  data-tip={repo.meta.favorite ? "Unpin it" : "Keep it in this menu"}
-                  className={repo.meta.favorite ? "text-text" : "text-text-dim hover:text-text"}>
-                  {repo.meta.favorite ? "★" : "☆"}
-                </button>
-              ) : (
-                <Icon d={chosen.type === "folder" ? FOLDER : BRANCH} />
-              )}
+              {(() => {
+                // A source used before pins at once; a new one is pinned when Create makes it (pinNew).
+                const pinned = repo ? repo.meta.favorite === true : pinNew;
+                if (repo && !onFavorite) return <Icon d={chosen.type === "folder" ? FOLDER : BRANCH} />;
+                return (
+                  <button type="button" onClick={() => (repo ? onFavorite?.(repo) : setPinNew((on) => !on))}
+                    aria-label={pinned ? `Unpin ${chosenName}` : `Pin ${chosenName}`}
+                    data-tip={pinned ? "Unpin it" : "Keep it in this menu"}
+                    className={pinned ? "text-text" : "text-text-dim hover:text-text"}>
+                    {pinned ? "★" : "☆"}
+                  </button>
+                );
+              })()}
               <span className="truncate">{chosenName}</span>
               <button type="button" onClick={clearChosen} aria-label={`Clear ${chosenName}`}
                 className="rounded-md px-1.5 text-text-dim hover:text-text">
