@@ -499,7 +499,8 @@ export default function FindIdeasPage() {
 
         {/* Liked has no input of its own: it's fed by ♥ and Use on the other two shelves. */}
         {mode === "trends" && <SearchBox onSearched={onSearchActivity} onBusyChange={setSearchBusy} />}
-        {mode === "repo" && <RepoForm onCreated={onRepoCreated} repo={selectedRepo} onClear={() => setSelectedRepoId(null)} />}
+        {mode === "repo" && <RepoForm onCreated={onRepoCreated} repo={selectedRepo} onClear={() => setSelectedRepoId(null)}
+          repos={repos} onPick={(repo) => setSelectedRepoId(repo.id)} onFavorite={(repo) => void updateRepo(repo, { favorite: !repo.meta.favorite })} />}
         {mode === "repo" && (
           <RepoChips repos={repos} counts={repoCounts} selectedId={activeRepo?.id ?? null} onSelect={setSelectedRepoId}
             onAgain={(repo) => void repoAgain(repo)} onRemove={(repo) => void removeRepo(repo)}

@@ -44,21 +44,29 @@ describe("From a repo's form: what Create sends (posts from a repo, 2026-10-10)"
   });
 
   it("a chip selected: its name as the source, × to clear it, no folder or link to fill", () => {
-    const html = renderToStaticMarkup(createElement(RepoForm, { onCreated: () => {}, repo: repo({}), onClear: () => {} }));
+    const html = renderToStaticMarkup(createElement(RepoForm, { onCreated: () => {}, repo: repo({}), onClear: () => {}, onFavorite: () => {} }));
     expect(html).toContain(">postecho<");
     expect(html).toContain('aria-label="Clear postecho"');
-    expect(html).not.toContain(">Choose a folder<");
+    expect(html).not.toContain("Choose a folder");
     expect(html).not.toContain('aria-label="GitHub link"');
-    expect(html).toContain(">Create<");
+    expect(html).toContain('aria-label="Create"');
+    // ☆ pins it, so it heads the folder chip's menu (2026-10-11).
+    expect(html).toContain('aria-label="Pin postecho"');
+    const pinned = renderToStaticMarkup(createElement(RepoForm, { onCreated: () => {}, repo: repo({ meta: { sourceType: "folder", favorite: true } }), onFavorite: () => {} }));
+    expect(pinned).toContain('aria-label="Unpin postecho"');
   });
 
   it("renders the two sources, the formats, no count and the note said once", () => {
     const html = renderToStaticMarkup(createElement(RepoForm, { onCreated: () => {} }));
-    expect(html).toContain(">Choose a folder<");
-    expect(html).toContain("GitHub");
+    expect(html).toContain("Choose a folder");
+    expect(html).toContain("GitHub link");
+    // With sources used before, the folder chip opens a menu of them.
+    expect(html).not.toContain('aria-haspopup="menu"');
+    const withRepos = renderToStaticMarkup(createElement(RepoForm, { onCreated: () => {}, repos: [repo({})] }));
+    expect(withRepos).toContain('aria-haspopup="menu"');
     for (const format of ["X post", "LinkedIn post", "X article"]) expect(html).toContain(`>${format}<`);
     expect(html).not.toContain('aria-label="How many"');
     expect(html.match(/goes to Claude to write the posts/g)).toHaveLength(1);
-    expect(html).toContain(">Create<");
+    expect(html).toContain('aria-label="Create"');
   });
 });
